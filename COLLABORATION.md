@@ -19,8 +19,8 @@
 ### 第一次設置（只需做一次）
 
 ```bash
-# 1. Clone 專案（從 GitHub/GitLab）
-git clone https://github.com/irisgo/mnemosyne.git
+# 1. Clone 專案（從 GitHub）
+git clone https://github.com/IrisGoLab/mnemosyne.git
 cd mnemosyne
 
 # 2. 設定你的身份
@@ -405,7 +405,7 @@ git branch -D feature/my-feature
 
 - **Slack**: #mnemosyne-dev
 - **Email**: lman@irisgo.ai
-- **GitHub Issues**: [創建 Issue](https://github.com/irisgo/mnemosyne/issues)
+- **GitHub Issues**: [創建 Issue](https://github.com/IrisGoLab/mnemosyne/issues)
 
 ---
 

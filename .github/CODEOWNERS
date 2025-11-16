@@ -1,0 +1,24 @@
+# Mnemosyne Code Owners
+#
+# 這個檔案定義了哪些人或團隊需要 review 特定的變更
+# 詳細說明：https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# PRD 變更必須由 Lman review
+/PRD.md @lman
+
+# 所有文檔變更需要 irisgopm team review
+/docs/** @IrisGoLab/irisgopm
+
+# 協作指南變更需要 Lman review
+/COLLABORATION.md @lman
+/QUICK_START.md @lman
+
+# 源代碼變更需要 team review
+/src/** @IrisGoLab/irisgopm
+
+# 配置文件變更需要 Lman review
+/package.json @lman
+/.gitignore @lman
+
+# 所有其他變更的 fallback reviewer
+* @lman
