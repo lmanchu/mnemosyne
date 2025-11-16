@@ -10,6 +10,16 @@
 
 ---
 
+## 🤝 Team Collaboration
+
+**New to this project?** Start here:
+- 📘 **[Quick Start Guide](./QUICK_START.md)** - 5-minute onboarding (推薦給同事)
+- 📚 **[Collaboration Guide](./COLLABORATION.md)** - Complete Git workflow documentation
+
+**Current Version**: v1.3 (2025-11-16)
+
+---
+
 ## 📋 Project Overview
 
 Mnemosyne is the context-aware engine at the heart of IrisGo.AI that:
