@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.5.1] - 2025-12-22
+
+### Added
+- **CES 2026 Demo Script**: 45-second demo script for CES booth presentation
+- Archived old contextual persona system document (v0.1)
+
+### Changed
+- Major PRD reorganization and content updates
+- README updates for better project overview
+
+### Documentation
+- New file: `CES-2026-Demo-Script-45sec.md`
+- New file: `docs/_archived-contextual-persona-system-v0.1.md`
+- Updated: `PRD.md` (major revision)
+- Updated: `README.md`
+- Updated: `docs/01-MVP-Plan.md`
+
+---
+
 ## [1.5.0] - 2025-12-15
 
 ### Added
