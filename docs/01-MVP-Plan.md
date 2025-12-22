@@ -21,7 +21,7 @@
 
 **目標用戶**：非技術背景的知識工作者，無需程式碼相關數據源。
 
-詳見：[PRD.md](../PRD.md) 和 [README.md](../README.md)
+詳見：[PRD.md](Mnemosyne%20PRD.md) 和 [README.md](../README.md)
 
 ---
 

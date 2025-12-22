@@ -10,6 +10,17 @@
 
 ## 📋 文件資訊
 
+| 欄位 | 內容 |
+|------|------|
+| **文件名稱** | Mnemosyne 產品需求文件 (PRD) |
+| **版本** | v1.5.1 |
+| **狀態** | Draft → Ready for Review |
+| **作者** | Lman (Founder & Product) |
+| **建立日期** | 2025-11-01 |
+| **最後更新** | 2025-12-15 |
+| **審查者** | Jeffrey (CEO), Arnold (CTO) |
+| **所屬專案** | IrisGo.AI - Strategic Pillar 1 |
+
 ---
 
 ## 🎯 產品概述
@@ -2519,15 +2530,45 @@ Week 6: CLI Tool + Automation
 
 ### 收益模式
 
-1. 個人使用（免費 Tier）
+1. 個人使用（Free Tier）
 
 - 生成 System Prompts 供自己使用
 - 基礎數據源（4 個）
+- **3 個 Mask 配額**（social_media, professional, + 1 自選）
+- 基本 Trait 選擇
 - 每週自動更新
 - 本地處理，完全隱私
 - 收益：0（獲客和品牌建立）
 
-2. Data Marketplace（選擇加入）
+2. Pro Tier（$9.99/月）🆕
+
+- **無限 Mask 數量**
+- **自定義 Prompt 編輯器**
+- **進階 Traits Library**（50+ 特質）
+- **Context Blending** 功能
+- 更多數據源（Slack、Teams、Notion）
+- 即時更新（不只週更新）
+- 進階分析和洞察
+- 目標轉換率：10-15%
+
+3. Team Tier（$29.99/月）🆕
+
+- 組織共享 Persona
+- 品牌 Voice 統一功能
+- 團隊 Mask 模板
+- 管理員控制台
+- 10 人以內團隊
+- 目標客戶：小型團隊、Agency
+
+4. Enterprise Tier（$99-499/月）（未來）
+
+- 大型團隊版（10-100 人）
+- SSO 整合
+- 企業級隱私保護
+- 自定義 MBTI 替代方案
+- 目標客戶：500-5000 人企業
+
+5. Data Marketplace（選擇加入）
 
 - 用戶選擇分享 Tier 1/2 標籤
 - 隱私保護的匹配機制
@@ -2535,23 +2576,7 @@ Week 6: CLI Tool + Automation
 - 預估用戶收益：$50-100/月
 - 平台收益：$20-40/用戶/月
 
-3. Pro Tier（$9.99/月）（未來）
-
-- 更多數據源（Slack、Teams、Notion）
-- 即時更新（不只週更新）
-- 進階分析和洞察
-- 團隊協作功能
-- 目標轉換率：10-15%
-
-4. Enterprise Tier（$99-499/月）（未來）
-
-- 團隊版（10-100 人）
-- 管理員控制台
-- SSO 整合
-- 企業級隱私保護
-- 目標客戶：500-5000 人企業
-
-5. B2B 市場研究
+6. B2B 市場研究
 
 - 聚合、匿名化的受眾洞察
 - 不識別個別用戶
@@ -2646,26 +2671,76 @@ Year 3（1,000,000 用戶）：
 - [02-Data-Sources.md](/Users/lman/Dropbox/PKM-Vault/1-Projects/IrisGo/Mnemosyne/docs/02-Data-Sources.md) - 數據源分析
 - [03-Privacy-Architecture.md](/Users/lman/Dropbox/PKM-Vault/1-Projects/IrisGo/Mnemosyne/docs/03-Privacy-Architecture.md) - 隱私架構
 - [04-VLM-Solution.md](/Users/lman/Dropbox/PKM-Vault/1-Projects/IrisGo/Mnemosyne/docs/04-VLM-Solution.md) - VLM 實施方案
-- [contextual-persona-system.md](/Users/lman/Dropbox/PKM-Vault/1-Projects/IrisGo/Mnemosyne/docs/contextual-persona-system.md) - 🆕 情境化人設系統 (v1.4.0)
+- [contextual-persona-system.md](/Users/lman/Dropbox/PKM-Vault/1-Projects/IrisGo/Mnemosyne/docs/contextual-persona-system.md) - 情境化人設系統 (v1.4.0)
+- [RFC-Root-Persona-Mask-Architecture.md](/Users/lman/Dropbox/PKM-Vault/1-Projects/IrisGo/Mnemosyne/docs/RFC-Root-Persona-Mask-Architecture.md) - 🆕 Root Persona + Mask 架構 RFC (v1.5.0)
 
 ### C. 版本歷史
 
-v1.4.0 更新摘要：
+v1.5.1 更新摘要（2025-12-15）：
+
+- ✅ **補齊文件資訊**：新增文件 metadata 表格（版本、作者、日期、審查者、所屬專案）
+- ⚠️ **待補齊章節識別**：
+  - 📊 成功指標（MVP/Alpha/Beta/Production）- 待填寫
+  - 🏆 競爭分析（競爭對手列表、差異化）- 待填寫
+  - ⚠️ 風險與緩解（技術/產品/市場風險）- 待填寫
+- 📝 **文件狀態**：維持 `Draft → Ready for Review`，待上述章節補齊後可進入正式 Review
+
+---
+
+v1.5.0 更新摘要（2025-12-15）：
+
+- ✅ **架構演進**：從 "Contextual Persona System" 進化為 **"Root Persona + Mask Architecture"**
+- ✅ **Cold-Start 解決方案**：
+  - MBTI 測試（10-15 題）快速建立 Root Persona
+  - LinkedIn OAuth 導入作為替代方案
+  - MBTI → Root Persona 映射引擎
+
+- ✅ **Root Persona（根人格）- 不可變層**：
+  - 基於 MBTI 16 型人格
+  - Core Values（核心價值觀）
+  - Thinking Patterns（思維模式）
+  - Communication Style（溝通風格）
+  - 來源：`mbti_test | linkedin_import | manual`
+
+- ✅ **Mask（面具）- 可選/可客製層**：
+  - 4 個基礎 Mask：`social_media`, `professional`, `internal_team`, `thought_leadership`
+  - Selectable Traits Library（50+ 可選特質）
+  - Context Blending 支援（混合多情境）
+  - Free: 3 Masks / Pro: 無限 + 自定義 Prompt
+
+- ✅ **商業模式更新**：
+  - Free Tier: 3 個 Mask + 基本 Trait 選擇
+  - Pro Tier ($9.99/mo): 無限 Mask + Prompt 編輯 + 進階 Traits
+  - Team Tier ($29.99/mo): 組織 Persona + 品牌 Voice 統一
+
+- ✅ **TypeScript Data Schema**：
+  - `RootPersona` interface（含 MBTI、locked: true）
+  - `Mask` interface（含 selectedTraits、customPrompt）
+  - `TraitSelection`、`UsageStats`、`ContextBlend` interfaces
+
+- ✅ **實施路線圖**（10 週）：
+  - Phase 1 (Week 1-2): Foundation - 4 base masks + context detection
+  - Phase 2 (Week 3-4): Cold-Start - MBTI 流程 + LinkedIn 導入
+  - Phase 3 (Week 5-6): Trait System - 50+ traits library
+  - Phase 4 (Week 7-8): Dynamic Updates - DayFlow 整合 + auto-adjust
+  - Phase 5 (Week 9-10): Monetization - Pro tier + custom editor
+
+- ✅ 來源：RFC-Root-Persona-Mask-Architecture.md v0.2 (2025-12-05)
+
+---
+
+v1.4.0 更新摘要（2025-12-01）：
 
 - ✅ 新增 Contextual Persona System RFC：`docs/contextual-persona-system.md`
 - ✅ Root Persona + Contextual Persona 分層架構：
-- Root Persona：核心身份、價值觀、思維模式（不變）
-
-- Contextual Personas：依情境切換的語氣、正式度、用詞風格
+  - Root Persona：核心身份、價值觀、思維模式（不變）
+  - Contextual Personas：依情境切換的語氣、正式度、用詞風格
 
 - ✅ 4 個基礎情境 Persona：
-- `social_media`：Twitter/社群，輕鬆 + 動漫梗
-
-- `professional`：LinkedIn/會議，專業正式
-
-- `internal_team`：Slack/內部，直接坦率
-
-- `thought_leadership`：Medium/文章，深度思考
+  - `social_media`：Twitter/社群，輕鬆 + 動漫梗
+  - `professional`：LinkedIn/會議，專業正式
+  - `internal_team`：Slack/內部，直接坦率
+  - `thought_leadership`：Medium/文章，深度思考
 
 - ✅ Context Detection Logic：關鍵字觸發情境識別
 - ✅ Persona Merging System：Root + Context Overlay = Final Persona

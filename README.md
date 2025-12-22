@@ -16,7 +16,7 @@
 - 📘 **[Quick Start Guide](./QUICK_START.md)** - 5-minute onboarding (推薦給同事)
 - 📚 **[Collaboration Guide](./COLLABORATION.md)** - Complete Git workflow documentation
 
-**Current Version**: v1.3 (2025-11-16)
+**Current Version**: v1.4.0 (2025-12-01)
 
 ---
 
@@ -386,7 +386,7 @@ This is an internal IrisGo project. For questions or suggestions, contact the te
 ## 📚 Documentation
 
 Complete documentation available in `docs/`:
-1. [PRD (Product Requirements Document)](./PRD.md) - **Start here**: Complete product specification
+1. [PRD (Product Requirements Document)](Mnemosyne%20PRD.md) - **Start here**: Complete product specification
 2. [Overview & Design](./docs/00-Overview.md) - Product vision and architecture
 3. [MVP Implementation Plan](./docs/01-MVP-Plan.md) - 6-week execution plan
 4. [Data Sources Analysis](./docs/02-Data-Sources.md) - Comprehensive source evaluation
@@ -403,8 +403,8 @@ Proprietary - IrisGo.AI © 2025
 
 **Project Name**: Mnemosyne (Mnemo)
 **Status**: Planning Phase → Ready for MVP Implementation
-**Last Updated**: 2025-11-16
-**Version**: 0.1.0
+**Last Updated**: 2025-12-01
+**Version**: 1.4.0
 
 ---
 
