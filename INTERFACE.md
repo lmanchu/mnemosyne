@@ -9,6 +9,23 @@
 
 ---
 
+## Philosophy
+
+> The memory system can be seen as the most direct and intimate connection between the user and the agent. By contrast, the context-aware engine acts more like a bridge between the agent and the real world, giving the agent a better chance to fully understand and assist the user.
+>
+> — Lman Chu, 2026-03-24
+
+```
+User ←── Memory ──→ Agent ←── Context Engine ──→ Real World
+        (intimate)            (bridge)
+```
+
+**Memory** is what the agent remembers about you — your preferences, past conversations, accumulated knowledge. It's the relationship.
+
+**Context Engine** (Mnemosyne) is what the agent perceives about your world right now — what you're working on, which apps are open, how your day is going. It's the awareness.
+
+An agent with memory but no context is like a friend who knows you well but can't see what you're doing. An agent with context but no memory is like a stranger watching over your shoulder. You need both.
+
 ## One Sentence
 
 Mnemosyne watches your screen, understands what you're doing (not just which app is open), and serves structured context to IrisGo so it can personalize everything.
