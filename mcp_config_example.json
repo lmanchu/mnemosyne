@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "mnemosyne": {
+      "command": "python",
+      "args": ["mcp_server.py"],
+      "cwd": "~/.mnemosyne/engine",
+      "env": {
+        "GEMINI_API_KEY": "your-key-here",
+        "MNEMOSYNE_CAPTURE_ENABLED": "true",
+        "MNEMOSYNE_CAPTURE_INTERVAL": "10"
+      }
+    }
+  }
+}
