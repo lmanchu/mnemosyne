@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mnemosyne — Context-Aware Engine</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config = {
+  darkMode: 'class',
+  theme: {
+    extend: {
+      colors: {
+        iris: { bg: '#1E2E2B', accent: '#DDF79F', text: '#E5E0DF', muted: '#8B9B8F' }
+      }
+    }
+  }
+}
+</script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&display=swap');
+  body { font-family: 'Sora', sans-serif; }
+  .card-block { transition: all 0.2s; }
+  .card-block:hover { transform: translateY(-1px); }
+  .category-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+</style>
+</head>
+<body class="bg-iris-bg text-iris-text min-h-screen">
+
+<div id="app" class="max-w-6xl mx-auto px-6 py-8">
+
+  <!-- Header -->
+  <header class="flex items-center justify-between mb-8">
+    <div>
+      <h1 class="text-2xl font-bold text-iris-accent">Mnemosyne</h1>
+      <p class="text-iris-muted text-sm mt-1">Context-Aware Engine</p>
+    </div>
+    <div id="status-badge" class="flex items-center gap-2 px-3 py-1.5 rounded-full bg-iris-bg border border-iris-muted/30">
+      <span id="status-dot" class="w-2 h-2 rounded-full bg-gray-500"></span>
+      <span id="status-text" class="text-xs text-iris-muted">Loading...</span>
+    </div>
+  </header>
+
+  <!-- Current Activity -->
+  <section id="current-section" class="mb-8 p-5 rounded-xl bg-white/5 border border-iris-accent/20">
+    <div class="flex items-center gap-2 mb-3">
+      <span class="text-iris-accent text-sm font-semibold uppercase tracking-wider">Now</span>
+    </div>
+    <div id="current-activity" class="text-lg font-medium">—</div>
+    <div id="current-category" class="text-iris-muted text-sm mt-1"></div>
+    <div id="current-apps" class="text-iris-muted text-xs mt-2"></div>
+  </section>
+
+  <!-- Stats Row -->
+  <div class="grid grid-cols-4 gap-4 mb-8">
+    <div class="p-4 rounded-xl bg-white/5">
+      <div class="text-iris-muted text-xs uppercase tracking-wider mb-1">Cards</div>
+      <div id="stat-cards" class="text-2xl font-bold text-iris-accent">—</div>
+    </div>
+    <div class="p-4 rounded-xl bg-white/5">
+      <div class="text-iris-muted text-xs uppercase tracking-wider mb-1">Screenshots</div>
+      <div id="stat-screenshots" class="text-2xl font-bold text-iris-accent">—</div>
+    </div>
+    <div class="p-4 rounded-xl bg-white/5">
+      <div class="text-iris-muted text-xs uppercase tracking-wider mb-1">Categories</div>
+      <div id="stat-categories" class="text-2xl font-bold text-iris-accent">—</div>
+    </div>
+    <div class="p-4 rounded-xl bg-white/5">
+      <div class="text-iris-muted text-xs uppercase tracking-wider mb-1">Storage</div>
+      <div id="stat-storage" class="text-2xl font-bold text-iris-accent">—</div>
+    </div>
+  </div>
+
+  <!-- Two columns: Timeline + Profile -->
+  <div class="grid grid-cols-3 gap-6">
+
+    <!-- Timeline (2/3) -->
+    <div class="col-span-2">
+      <h2 class="text-lg font-semibold mb-4">Timeline</h2>
+      <div id="timeline" class="space-y-3">
+        <div class="text-iris-muted text-sm">Loading cards...</div>
+      </div>
+    </div>
+
+    <!-- Profile sidebar (1/3) -->
+    <div>
+      <h2 class="text-lg font-semibold mb-4">Profile</h2>
+
+      <!-- Category breakdown -->
+      <div id="categories-chart" class="mb-6 p-4 rounded-xl bg-white/5">
+        <div class="text-iris-muted text-xs uppercase tracking-wider mb-3">Categories</div>
+        <div id="categories-bars"></div>
+      </div>
+
+      <!-- Apps used -->
+      <div id="apps-section" class="mb-6 p-4 rounded-xl bg-white/5">
+        <div class="text-iris-muted text-xs uppercase tracking-wider mb-3">Apps Used</div>
+        <div id="apps-list" class="flex flex-wrap gap-2"></div>
+      </div>
+
+      <!-- System Prompt Fragment -->
+      <div class="p-4 rounded-xl bg-white/5">
+        <div class="text-iris-muted text-xs uppercase tracking-wider mb-3">System Prompt Fragment</div>
+        <pre id="prompt-fragment" class="text-xs text-iris-muted whitespace-pre-wrap leading-relaxed">—</pre>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Footer -->
+  <footer class="mt-12 pt-6 border-t border-iris-muted/20 text-center text-iris-muted text-xs">
+    Mnemosyne — Context-Aware Engine for <a href="https://irisgo.ai" class="text-iris-accent hover:underline">IrisGo.AI</a>
+    &middot; All data stays local
+    &middot; <a href="https://github.com/lmanchu/mnemosyne" class="text-iris-accent hover:underline">GitHub</a>
+  </footer>
+
+</div>
+
+<script>
+const API = 'http://127.0.0.1:5700/api/v1';
+
+const CATEGORY_COLORS = {
+  'Development': '#DDF79F',
+  'Communication': '#7DD3FC',
+  'Research': '#C4B5FD',
+  'Writing': '#FCA5A5',
+  'Meeting': '#FDBA74',
+  'Entertainment': '#F9A8D4',
+  'Idle': '#6B7280',
+  'Other': '#9CA3AF',
+};
+
+function catColor(cat) {
+  return CATEGORY_COLORS[cat] || CATEGORY_COLORS['Other'];
+}
+
+async function fetchJSON(path) {
+  try {
+    const r = await fetch(API + path);
+    if (!r.ok) throw new Error(r.status);
+    return await r.json();
+  } catch (e) {
+    console.error('API error:', path, e);
+    return null;
+  }
+}
+
+function timeStr(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+
+async function loadHealth() {
+  const h = await fetchJSON('/health');
+  if (!h) {
+    document.getElementById('status-dot').className = 'w-2 h-2 rounded-full bg-red-500';
+    document.getElementById('status-text').textContent = 'Offline';
+    return;
+  }
+  document.getElementById('status-dot').className = 'w-2 h-2 rounded-full bg-emerald-400';
+  document.getElementById('status-text').textContent = h.status;
+  document.getElementById('stat-screenshots').textContent = h.db_rows?.screenshots || 0;
+  document.getElementById('stat-storage').textContent = h.captures_size_mb + ' MB';
+}
+
+async function loadContext() {
+  const ctx = await fetchJSON('/context/now');
+  if (!ctx || !ctx.current) {
+    document.getElementById('current-activity').textContent = 'No activity data yet';
+    return;
+  }
+  const c = ctx.current;
+  document.getElementById('current-activity').textContent = c.title || '—';
+  document.getElementById('current-category').innerHTML =
+    `<span class="category-dot mr-1" style="background:${catColor(c.category)}"></span>${c.category} · ${c.subcategory || ''}`;
+
+  const apps = Array.isArray(c.apps_used) ? c.apps_used : [];
+  document.getElementById('current-apps').textContent = apps.length ? 'Apps: ' + apps.join(', ') : '';
+  document.getElementById('prompt-fragment').textContent = ctx.system_prompt_fragment || '—';
+}
+
+async function loadCards() {
+  const today = new Date().toISOString().split('T')[0];
+  const cards = await fetchJSON(`/cards?date=${today}&limit=50`);
+  const el = document.getElementById('timeline');
+
+  if (!cards || cards.length === 0) {
+    el.innerHTML = '<div class="text-iris-muted text-sm p-4 rounded-xl bg-white/5">No cards for today. Run the pipeline to generate activity data.</div>';
+    document.getElementById('stat-cards').textContent = '0';
+    return;
+  }
+
+  document.getElementById('stat-cards').textContent = cards.length;
+
+  // Sort by start_time ascending
+  cards.sort((a, b) => (a.start_time || '').localeCompare(b.start_time || ''));
+
+  el.innerHTML = cards.map(c => {
+    const apps = Array.isArray(c.apps_used) ? c.apps_used : [];
+    const color = catColor(c.category);
+    return `
+      <div class="card-block p-4 rounded-xl bg-white/5 border-l-4 cursor-pointer" style="border-color: ${color}">
+        <div class="flex items-center justify-between mb-1">
+          <span class="text-sm font-medium">${c.title || '—'}</span>
+          <span class="text-xs text-iris-muted">${timeStr(c.start_time)} – ${timeStr(c.end_time)}</span>
+        </div>
+        <div class="text-xs text-iris-muted mb-2">
+          <span class="category-dot mr-1" style="background:${color}"></span>${c.category}${c.subcategory ? ' · ' + c.subcategory : ''}
+          ${c.confidence ? ' · ' + Math.round(c.confidence * 100) + '%' : ''}
+        </div>
+        <div class="text-sm text-iris-text/80">${c.summary || ''}</div>
+        ${apps.length ? `<div class="text-xs text-iris-muted mt-2">Apps: ${apps.join(', ')}</div>` : ''}
+      </div>
+    `;
+  }).join('');
+}
+
+async function loadProfile() {
+  const today = new Date().toISOString().split('T')[0];
+  const profile = await fetchJSON(`/profile?date=${today}`);
+
+  if (!profile || profile.status === 'no_data') {
+    document.getElementById('categories-bars').innerHTML = '<div class="text-iris-muted text-sm">No data</div>';
+    document.getElementById('stat-categories').textContent = '0';
+    return;
+  }
+
+  const cats = profile.categories || [];
+  document.getElementById('stat-categories').textContent = cats.length;
+
+  // Category bars
+  document.getElementById('categories-bars').innerHTML = cats.map(c => `
+    <div class="mb-2">
+      <div class="flex justify-between text-xs mb-1">
+        <span><span class="category-dot mr-1" style="background:${catColor(c.name)}"></span>${c.name}</span>
+        <span class="text-iris-muted">${c.pct}%</span>
+      </div>
+      <div class="w-full h-2 rounded-full bg-white/10">
+        <div class="h-2 rounded-full" style="width:${c.pct}%; background:${catColor(c.name)}"></div>
+      </div>
+    </div>
+  `).join('');
+
+  // Apps
+  const appsEl = document.getElementById('apps-list');
+  appsEl.innerHTML = (profile.apps_used || []).map(a =>
+    `<span class="px-2 py-1 text-xs rounded-md bg-white/10 text-iris-text/80">${a}</span>`
+  ).join('');
+}
+
+// Init
+(async () => {
+  await Promise.all([loadHealth(), loadContext(), loadCards(), loadProfile()]);
+  // Refresh every 30s
+  setInterval(() => Promise.all([loadHealth(), loadContext(), loadCards(), loadProfile()]), 30000);
+})();
+</script>
+
+</body>
+</html>
