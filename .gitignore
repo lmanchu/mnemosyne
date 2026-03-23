@@ -37,3 +37,7 @@ coverage/
 tmp/
 temp/
 *.tmp
+context.db
+.venv/
+__pycache__/
+*.pyc
