@@ -2,7 +2,7 @@
 
 > Context-Aware Engine for AIPC — understands what you're doing, not just which app is open.
 
-Mnemosyne watches your screen, analyzes it with AI, and produces structured context that IrisGo uses to personalize everything. Local-first. Multi-provider. ~900 lines of Python.
+Mnemosyne watches your screen, analyzes it with AI, and produces structured context that IrisGo uses to personalize everything. Local-first. Multi-provider. ~1500 lines of Python.
 
 ## How It Works
 
@@ -32,7 +32,7 @@ cd mnemosyne
 python -m venv .venv
 source .venv/Scripts/activate   # Windows
 # source .venv/bin/activate     # macOS/Linux
-pip install mss Pillow
+pip install mss Pillow mcp
 
 # Phase 0: Take a screenshot
 python capture.py
@@ -42,6 +42,9 @@ GEMINI_API_KEY=your_key python test_vlm.py
 
 # Phase 2: Full pipeline (capture 3 screenshots → analyze → produce ActivityCard)
 GEMINI_API_KEY=your_key python pipeline.py --count 3
+
+# Dashboard (open http://localhost:5700)
+python api.py
 ```
 
 ## What's Built (as of 2026-03-24)
@@ -53,7 +56,10 @@ GEMINI_API_KEY=your_key python pipeline.py --count 3
 | `storage.py` | 160 | SQLite: screenshots, batches, cards tables | Working |
 | `provider_gemini.py` | 150 | Gemini 2.5 Flash: transcribe + generate card (2 API calls) | Working |
 | `pipeline.py` | 100 | End-to-end: capture → batch → analyze → store | Produces real ActivityCards |
-| `INTERFACE.md` | 380 | Full interface spec: inputs, outputs, API, dashboard | Spec complete |
+| `mcp_server.py` | 200 | MCP server: 5 tools + 1 resource + background capture | Working |
+| `api.py` | 150 | REST API server on localhost:5700 | Working |
+| `dashboard.html` | 250 | Timeline + profile dashboard (Tailwind, IrisGo brand) | Working |
+| `INTERFACE.md` | 400 | Full interface spec: inputs, outputs, API, philosophy | Spec complete |
 
 ### Example ActivityCard (real output)
 
@@ -73,12 +79,15 @@ GEMINI_API_KEY=your_key python pipeline.py --count 3
 
 ```
 mnemosyne/
-├── capture.py           # Screen capture daemon (mss library)
+├── capture.py           # Screen capture (mss library, 250ms/shot)
 ├── storage.py           # SQLite: screenshots, batches, cards
 ├── provider_gemini.py   # Gemini Vision: transcribe + generate card
 ├── pipeline.py          # Orchestrator: capture → batch → analyze → store
+├── mcp_server.py        # MCP server: 5 tools for IrisGo integration
+├── api.py               # REST API + dashboard server (localhost:5700)
+├── dashboard.html       # Timeline + profile UI (single file, Tailwind)
 ├── test_vlm.py          # VLM validation script
-├── INTERFACE.md         # Interface specification (inputs/outputs/API)
+├── INTERFACE.md         # Interface spec + philosophy (Memory vs Context)
 └── docs/                # Design documents (v1.x, historical)
 ```
 
@@ -97,21 +106,41 @@ mnemosyne/
 - [x] Phase 1: VLM validation (Gemini understands screenshots)
 - [x] Phase 2: Full pipeline (capture → batch → ActivityCard → SQLite)
 - [ ] Phase 3: Multi-provider (Claude, OpenAI, Ollama)
-- [ ] Phase 4: Daemon mode + REST API (`localhost:5700`)
-- [ ] Phase 5: Dashboard (mnemosyne.irisgo.xyz)
+- [x] Phase 4: MCP server (5 tools + IrisGo skill)
+- [x] Phase 5: Dashboard + REST API (`localhost:5700`)
 - [ ] Phase 6: IrisGo app integration
 - [ ] Phase 7: ActivityWatch bridge for metadata enrichment
 
-## API (Planned)
+## API
+
+Running on `http://localhost:5700`:
 
 ```
-GET /api/v1/context/now    # Current activity + system prompt fragment
-GET /api/v1/cards          # ActivityCards by date/category
-GET /api/v1/profile        # Aggregated context profile
-GET /api/v1/summary        # AI-generated day summary
-GET /api/v1/health         # System status
-POST /api/v1/settings      # Configuration
+GET /                       # Dashboard UI
+GET /api/v1/context/now     # Current activity + system prompt fragment
+GET /api/v1/cards           # ActivityCards by date/category
+GET /api/v1/profile         # Aggregated context profile
+GET /api/v1/summary         # Day summary
+GET /api/v1/health          # System status
 ```
+
+## MCP Integration
+
+Mnemosyne runs as an MCP server for direct integration with IrisGo and Claude Code:
+
+```json
+{
+  "mcpServers": {
+    "mnemosyne": {
+      "command": "python",
+      "args": ["mcp_server.py"],
+      "env": { "GEMINI_API_KEY": "your-key" }
+    }
+  }
+}
+```
+
+Tools: `mnemosyne_context_now`, `mnemosyne_get_cards`, `mnemosyne_get_profile`, `mnemosyne_get_summary`, `mnemosyne_health`
 
 See [INTERFACE.md](./INTERFACE.md) for full specification.
 
@@ -120,6 +149,7 @@ See [INTERFACE.md](./INTERFACE.md) for full specification.
 - Python 3.11+
 - `mss` (screen capture)
 - `Pillow` (image processing)
+- `mcp` (MCP server SDK)
 - Gemini API key (or other provider)
 - Optional: [ActivityWatch](https://activitywatch.net/) for metadata enrichment
 
