@@ -1,0 +1,1991 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mnemosyne - Your AI Understands You</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        mnemosyne: {
+                            50: '#f5f3ff',
+                            100: '#ede9fe',
+                            200: '#ddd6fe',
+                            300: '#c4b5fd',
+                            400: '#a78bfa',
+                            500: '#8b5cf6',
+                            600: '#7c3aed',
+                            700: '#6d28d9',
+                            800: '#5b21b6',
+                            900: '#4c1d95',
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .gradient-bg {
+            background: linear-gradient(135deg, #0f0a1a 0%, #1a1025 50%, #0f0a1a 100%);
+        }
+        .glow-purple {
+            box-shadow: 0 0 60px rgba(139, 92, 246, 0.3);
+        }
+        .card-glow:hover {
+            box-shadow: 0 0 30px rgba(139, 92, 246, 0.2);
+        }
+        @keyframes pulse-slow {
+            0%, 100% { opacity: 0.4; }
+            50% { opacity: 1; }
+        }
+        .pulse-slow {
+            animation: pulse-slow 3s ease-in-out infinite;
+        }
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .slide-up {
+            animation: slideUp 0.5s ease-out forwards;
+        }
+        @keyframes typing {
+            from { width: 0; }
+            to { width: 100%; }
+        }
+        .typing-effect {
+            overflow: hidden;
+            white-space: nowrap;
+            animation: typing 2s steps(40, end);
+        }
+        .context-highlight {
+            background: linear-gradient(90deg, rgba(139, 92, 246, 0.2), transparent);
+            border-left: 2px solid #8b5cf6;
+        }
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+        .float {
+            animation: float 6s ease-in-out infinite;
+        }
+        .app-card {
+            transition: all 0.3s ease;
+        }
+        .app-card:hover {
+            transform: translateY(-4px);
+        }
+        .app-card.connected {
+            border-color: #22c55e;
+        }
+        .app-card.connected::after {
+            content: '';
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            width: 8px;
+            height: 8px;
+            background: #22c55e;
+            border-radius: 50%;
+        }
+    </style>
+</head>
+<body class="font-sans gradient-bg text-white min-h-screen">
+    <!-- Navigation -->
+    <nav class="fixed top-0 w-full z-50 bg-slate-950/80 backdrop-blur-lg border-b border-slate-800">
+        <div class="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
+            <div class="flex items-center space-x-2">
+                <div class="w-10 h-10 bg-gradient-to-br from-mnemosyne-500 to-mnemosyne-700 rounded-xl flex items-center justify-center">
+                    <span class="text-xl">🧠</span>
+                </div>
+                <span class="text-xl font-bold bg-gradient-to-r from-mnemosyne-400 to-mnemosyne-200 bg-clip-text text-transparent">Mnemosyne</span>
+                <span class="text-xs text-slate-500 ml-2">by IrisGo</span>
+            </div>
+            <div class="flex items-center space-x-4">
+                <div class="flex items-center space-x-2 bg-slate-800/50 rounded-lg px-3 py-2">
+                    <div class="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+                    <span class="text-sm text-slate-300">Local Engine</span>
+                    <span class="text-xs text-mnemosyne-400 bg-mnemosyne-500/20 px-1.5 py-0.5 rounded">NPU</span>
+                </div>
+                <div class="w-10 h-10 bg-gradient-to-br from-mnemosyne-400 to-purple-500 rounded-full flex items-center justify-center">
+                    <span class="font-bold">L</span>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="pt-20">
+        <!-- Hero Section with Story Toggle -->
+        <section class="py-12 px-6">
+            <div class="max-w-7xl mx-auto text-center">
+                <h1 class="text-4xl md:text-5xl font-bold mb-4">
+                    Your AI, <span class="bg-gradient-to-r from-mnemosyne-400 to-pink-400 bg-clip-text text-transparent">Personalized</span>
+                </h1>
+                <p class="text-xl text-slate-400 max-w-2xl mx-auto mb-6">
+                    Mnemosyne learns your preferences locally and enhances every AI interaction to match your style.
+                </p>
+
+                <!-- View Toggle -->
+                <div class="inline-flex bg-slate-800/50 rounded-xl p-1 mb-8">
+                    <button onclick="showView('story')" id="btn-story" class="px-6 py-2 rounded-lg text-sm font-medium transition bg-mnemosyne-600 text-white">
+                        🎬 How It Works
+                    </button>
+                    <button onclick="showView('dashboard')" id="btn-dashboard" class="px-6 py-2 rounded-lg text-sm font-medium transition text-slate-400 hover:text-white">
+                        📊 Dashboard
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Story Flow Section -->
+        <section id="story-section" class="px-6 pb-12">
+            <div class="max-w-4xl mx-auto">
+                <!-- Progress Bar -->
+                <div class="mb-8">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-sm text-slate-400">Building Your Persona</span>
+                        <span id="story-progress-text" class="text-sm text-mnemosyne-400">Step 1 of 4</span>
+                    </div>
+                    <div class="h-2 bg-slate-800 rounded-full overflow-hidden">
+                        <div id="story-progress-bar" class="h-full bg-gradient-to-r from-mnemosyne-600 to-mnemosyne-400 rounded-full transition-all duration-500" style="width: 25%"></div>
+                    </div>
+                </div>
+
+                <!-- Step Indicators -->
+                <div class="flex justify-between mb-8">
+                    <button onclick="goToStep(1)" class="step-indicator active flex flex-col items-center" data-step="1">
+                        <div class="w-10 h-10 rounded-full bg-mnemosyne-600 flex items-center justify-center mb-1 transition">
+                            <span>1</span>
+                        </div>
+                        <span class="text-xs text-slate-400">Connect</span>
+                    </button>
+                    <div class="flex-1 flex items-center px-2">
+                        <div class="h-0.5 bg-slate-700 w-full"></div>
+                    </div>
+                    <button onclick="goToStep(2)" class="step-indicator flex flex-col items-center" data-step="2">
+                        <div class="w-10 h-10 rounded-full bg-slate-700 flex items-center justify-center mb-1 transition">
+                            <span>2</span>
+                        </div>
+                        <span class="text-xs text-slate-400">Tell Us</span>
+                    </button>
+                    <div class="flex-1 flex items-center px-2">
+                        <div class="h-0.5 bg-slate-700 w-full"></div>
+                    </div>
+                    <button onclick="goToStep(3)" class="step-indicator flex flex-col items-center" data-step="3">
+                        <div class="w-10 h-10 rounded-full bg-slate-700 flex items-center justify-center mb-1 transition">
+                            <span>3</span>
+                        </div>
+                        <span class="text-xs text-slate-400">Analyze</span>
+                    </button>
+                    <div class="flex-1 flex items-center px-2">
+                        <div class="h-0.5 bg-slate-700 w-full"></div>
+                    </div>
+                    <button onclick="goToStep(4)" class="step-indicator flex flex-col items-center" data-step="4">
+                        <div class="w-10 h-10 rounded-full bg-slate-700 flex items-center justify-center mb-1 transition">
+                            <span>4</span>
+                        </div>
+                        <span class="text-xs text-slate-400">Persona</span>
+                    </button>
+                </div>
+
+                <!-- Step Content Container -->
+                <div class="bg-slate-900/80 border border-slate-700 rounded-2xl overflow-hidden">
+
+                    <!-- Step 1: Connect Sources -->
+                    <div id="step-1" class="step-content p-8">
+                        <div class="text-center mb-6">
+                            <span class="text-4xl mb-4 block">🔗</span>
+                            <h2 class="text-2xl font-bold mb-2">Connect Your Data Sources</h2>
+                            <p class="text-slate-400">Let Mnemosyne learn from where you already spend time</p>
+                        </div>
+
+                        <!-- Source Selection Grid -->
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+                            <div onclick="toggleSource(this)" class="source-card selected cursor-pointer bg-green-500/10 border-2 border-green-500/50 rounded-xl p-4 text-center transition hover:scale-105">
+                                <span class="text-2xl block mb-2">📊</span>
+                                <span class="text-sm font-medium">DayFlow</span>
+                                <span class="text-xs text-green-400 block mt-1">✓ Connected</span>
+                            </div>
+                            <div onclick="toggleSource(this)" class="source-card selected cursor-pointer bg-green-500/10 border-2 border-green-500/50 rounded-xl p-4 text-center transition hover:scale-105">
+                                <span class="text-2xl block mb-2">✍️</span>
+                                <span class="text-sm font-medium">Medium</span>
+                                <span class="text-xs text-green-400 block mt-1">✓ 209 articles</span>
+                            </div>
+                            <div onclick="toggleSource(this)" class="source-card selected cursor-pointer bg-green-500/10 border-2 border-green-500/50 rounded-xl p-4 text-center transition hover:scale-105">
+                                <span class="text-2xl block mb-2">💼</span>
+                                <span class="text-sm font-medium">LinkedIn</span>
+                                <span class="text-xs text-green-400 block mt-1">✓ Connected</span>
+                            </div>
+                            <div onclick="toggleSource(this)" class="source-card cursor-pointer bg-slate-800/50 border-2 border-slate-600 rounded-xl p-4 text-center transition hover:scale-105 hover:border-mnemosyne-500">
+                                <span class="text-2xl block mb-2">📧</span>
+                                <span class="text-sm font-medium text-slate-400">Gmail</span>
+                                <span class="text-xs text-slate-500 block mt-1">Click to connect</span>
+                            </div>
+                            <div onclick="toggleSource(this)" class="source-card selected cursor-pointer bg-green-500/10 border-2 border-green-500/50 rounded-xl p-4 text-center transition hover:scale-105">
+                                <span class="text-2xl block mb-2">🗃️</span>
+                                <span class="text-sm font-medium">Obsidian</span>
+                                <span class="text-xs text-green-400 block mt-1">✓ PKM synced</span>
+                            </div>
+                            <div onclick="toggleSource(this)" class="source-card cursor-pointer bg-slate-800/50 border-2 border-slate-600 rounded-xl p-4 text-center transition hover:scale-105 hover:border-mnemosyne-500">
+                                <span class="text-2xl block mb-2">📅</span>
+                                <span class="text-sm font-medium text-slate-400">Calendar</span>
+                                <span class="text-xs text-slate-500 block mt-1">Click to connect</span>
+                            </div>
+                            <div onclick="toggleSource(this)" class="source-card cursor-pointer bg-slate-800/50 border-2 border-slate-600 rounded-xl p-4 text-center transition hover:scale-105 hover:border-mnemosyne-500">
+                                <span class="text-2xl block mb-2">💻</span>
+                                <span class="text-sm font-medium text-slate-400">GitHub</span>
+                                <span class="text-xs text-slate-500 block mt-1">Click to connect</span>
+                            </div>
+                            <div onclick="toggleSource(this)" class="source-card cursor-pointer bg-slate-800/50 border-2 border-slate-600 rounded-xl p-4 text-center transition hover:scale-105 hover:border-mnemosyne-500">
+                                <span class="text-2xl block mb-2">🌐</span>
+                                <span class="text-sm font-medium text-slate-400">Browser</span>
+                                <span class="text-xs text-slate-500 block mt-1">Click to connect</span>
+                            </div>
+                        </div>
+
+                        <div class="flex justify-between items-center">
+                            <span class="text-sm text-slate-500">4 sources connected</span>
+                            <button onclick="goToStep(2)" class="bg-mnemosyne-600 hover:bg-mnemosyne-500 px-6 py-2 rounded-xl font-medium transition">
+                                Next: Tell Us About You →
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Step 2: Manual Input -->
+                    <div id="step-2" class="step-content hidden p-8">
+                        <div class="text-center mb-6">
+                            <span class="text-4xl mb-4 block">✏️</span>
+                            <h2 class="text-2xl font-bold mb-2">Tell Us About Your Preferences</h2>
+                            <p class="text-slate-400">Some things are best shared directly - just give us titles, we'll analyze the rest</p>
+                        </div>
+
+                        <!-- Category Tabs -->
+                        <div class="flex flex-wrap gap-2 mb-4 justify-center">
+                            <button onclick="selectStoryCategory('anime')" class="story-cat-btn active bg-mnemosyne-600 px-4 py-2 rounded-lg text-sm transition">🎌 Anime</button>
+                            <button onclick="selectStoryCategory('tv')" class="story-cat-btn bg-slate-700 hover:bg-slate-600 px-4 py-2 rounded-lg text-sm transition">📺 TV Series</button>
+                            <button onclick="selectStoryCategory('movie')" class="story-cat-btn bg-slate-700 hover:bg-slate-600 px-4 py-2 rounded-lg text-sm transition">🎬 Movies</button>
+                            <button onclick="selectStoryCategory('book')" class="story-cat-btn bg-slate-700 hover:bg-slate-600 px-4 py-2 rounded-lg text-sm transition">📖 Books</button>
+                            <button onclick="selectStoryCategory('hobby')" class="story-cat-btn bg-slate-700 hover:bg-slate-600 px-4 py-2 rounded-lg text-sm transition">⚽ Hobbies</button>
+                        </div>
+
+                        <!-- Input Area -->
+                        <div class="bg-slate-800/50 rounded-xl p-4 mb-4">
+                            <div class="flex items-center space-x-3 mb-3">
+                                <input type="text" id="story-input" placeholder="Type an anime title... (e.g., Attack on Titan)"
+                                    class="flex-1 bg-slate-700 border border-slate-600 rounded-lg px-4 py-3 focus:outline-none focus:border-mnemosyne-500"
+                                    onkeypress="if(event.key==='Enter')addStoryItem()">
+                                <button onclick="addStoryItem()" class="bg-mnemosyne-600 hover:bg-mnemosyne-500 px-4 py-3 rounded-lg font-medium transition">Add</button>
+                            </div>
+                            <p class="text-xs text-slate-500">Just provide the title - Mnemosyne will analyze themes, genres, and what they say about you</p>
+                        </div>
+
+                        <!-- Added Items -->
+                        <div id="story-items" class="space-y-2 mb-6 max-h-48 overflow-y-auto">
+                            <div class="flex items-center justify-between bg-slate-800/30 rounded-lg p-3">
+                                <div class="flex items-center space-x-3">
+                                    <span>🎌</span>
+                                    <div>
+                                        <div class="text-sm font-medium">Attack on Titan</div>
+                                        <div class="text-xs text-mnemosyne-400">→ Dark themes, strategic thinking, anti-hero appreciation</div>
+                                    </div>
+                                </div>
+                                <span class="text-green-400 text-xs">✓ Analyzed</span>
+                            </div>
+                            <div class="flex items-center justify-between bg-slate-800/30 rounded-lg p-3">
+                                <div class="flex items-center space-x-3">
+                                    <span>🎌</span>
+                                    <div>
+                                        <div class="text-sm font-medium">Death Note</div>
+                                        <div class="text-xs text-mnemosyne-400">→ Psychological thriller, moral ambiguity, intellect battles</div>
+                                    </div>
+                                </div>
+                                <span class="text-green-400 text-xs">✓ Analyzed</span>
+                            </div>
+                            <div class="flex items-center justify-between bg-slate-800/30 rounded-lg p-3">
+                                <div class="flex items-center space-x-3">
+                                    <span>📺</span>
+                                    <div>
+                                        <div class="text-sm font-medium">Breaking Bad</div>
+                                        <div class="text-xs text-mnemosyne-400">→ Character transformation, moral complexity</div>
+                                    </div>
+                                </div>
+                                <span class="text-green-400 text-xs">✓ Analyzed</span>
+                            </div>
+                        </div>
+
+                        <div class="flex justify-between items-center">
+                            <button onclick="goToStep(1)" class="text-slate-400 hover:text-white transition">← Back</button>
+                            <button onclick="goToStep(3)" class="bg-mnemosyne-600 hover:bg-mnemosyne-500 px-6 py-2 rounded-xl font-medium transition">
+                                Next: Analyze Patterns →
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Step 3: Analysis -->
+                    <div id="step-3" class="step-content hidden p-8">
+                        <div class="text-center mb-6">
+                            <span class="text-4xl mb-4 block">🔬</span>
+                            <h2 class="text-2xl font-bold mb-2">Analyzing Your Patterns</h2>
+                            <p class="text-slate-400">Local AI processes your data to discover who you are</p>
+                        </div>
+
+                        <!-- Analysis Animation -->
+                        <div class="bg-slate-800/50 rounded-xl p-6 mb-6">
+                            <!-- Processing Indicator -->
+                            <div class="flex items-center justify-center space-x-3 mb-6">
+                                <div class="w-3 h-3 bg-mnemosyne-500 rounded-full animate-bounce" style="animation-delay: 0s"></div>
+                                <div class="w-3 h-3 bg-mnemosyne-500 rounded-full animate-bounce" style="animation-delay: 0.1s"></div>
+                                <div class="w-3 h-3 bg-mnemosyne-500 rounded-full animate-bounce" style="animation-delay: 0.2s"></div>
+                            </div>
+
+                            <!-- Analysis Steps -->
+                            <div id="analysis-steps" class="space-y-3">
+                                <div class="flex items-center space-x-3 text-green-400">
+                                    <span>✓</span>
+                                    <span>Processing 209 Medium articles...</span>
+                                </div>
+                                <div class="flex items-center space-x-3 text-green-400">
+                                    <span>✓</span>
+                                    <span>Analyzing entertainment preferences...</span>
+                                </div>
+                                <div class="flex items-center space-x-3 text-mnemosyne-400 animate-pulse">
+                                    <span>⟳</span>
+                                    <span>Detecting communication patterns...</span>
+                                </div>
+                                <div class="flex items-center space-x-3 text-slate-500">
+                                    <span>○</span>
+                                    <span>Building personality profile...</span>
+                                </div>
+                                <div class="flex items-center space-x-3 text-slate-500">
+                                    <span>○</span>
+                                    <span>Generating MBTI analysis...</span>
+                                </div>
+                            </div>
+
+                            <!-- Local Model Status -->
+                            <div class="mt-6 pt-4 border-t border-slate-700">
+                                <div class="flex items-center justify-between text-sm mb-3">
+                                    <div class="flex items-center space-x-2">
+                                        <div class="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+                                        <span class="text-slate-400">Mnemosyne Context Engine</span>
+                                    </div>
+                                    <span class="text-mnemosyne-400">100% Local</span>
+                                </div>
+                                <!-- Compute Source -->
+                                <div class="bg-slate-900/50 rounded-lg p-3">
+                                    <div class="text-xs text-slate-500 mb-2">Compute Source (Auto-selected)</div>
+                                    <div class="flex items-center space-x-3">
+                                        <div class="flex items-center space-x-1 px-2 py-1 bg-mnemosyne-500/20 border border-mnemosyne-500/30 rounded text-xs text-mnemosyne-400">
+                                            <span>⚡</span>
+                                            <span>NPU</span>
+                                        </div>
+                                        <div class="flex items-center space-x-1 px-2 py-1 bg-slate-700/50 rounded text-xs text-slate-500">
+                                            <span>🎮</span>
+                                            <span>GPU</span>
+                                        </div>
+                                        <div class="flex items-center space-x-1 px-2 py-1 bg-slate-700/50 rounded text-xs text-slate-500">
+                                            <span>💻</span>
+                                            <span>CPU</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Privacy Assurance -->
+                        <div class="bg-green-500/10 border border-green-500/30 rounded-xl p-4 mb-6">
+                            <div class="flex items-center space-x-3">
+                                <span class="text-2xl">🔒</span>
+                                <div>
+                                    <div class="font-medium text-green-400">Your data never leaves this device</div>
+                                    <div class="text-sm text-slate-400">All processing happens locally using your NPU</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="flex justify-between items-center">
+                            <button onclick="goToStep(2)" class="text-slate-400 hover:text-white transition">← Back</button>
+                            <button onclick="goToStep(4)" class="bg-mnemosyne-600 hover:bg-mnemosyne-500 px-6 py-2 rounded-xl font-medium transition">
+                                View Your Persona →
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Step 4: Persona Result -->
+                    <div id="step-4" class="step-content hidden p-8">
+                        <div class="text-center mb-6">
+                            <span class="text-4xl mb-4 block">✨</span>
+                            <h2 class="text-2xl font-bold mb-2">Your Dynamic Persona</h2>
+                            <p class="text-slate-400">This is how Mnemosyne sees you - and how it will personalize every AI interaction</p>
+                        </div>
+
+                        <!-- Persona Card -->
+                        <div class="bg-gradient-to-br from-mnemosyne-900/50 to-slate-800/50 border border-mnemosyne-500/30 rounded-2xl p-6 mb-6 glow-purple">
+                            <div class="grid md:grid-cols-2 gap-6">
+                                <!-- Left: MBTI & Core -->
+                                <div>
+                                    <!-- MBTI Badge -->
+                                    <div class="flex items-center space-x-4 mb-6 p-4 bg-slate-800/50 rounded-xl">
+                                        <div class="text-5xl">🎯</div>
+                                        <div>
+                                            <div class="text-4xl font-bold text-mnemosyne-400">INTJ</div>
+                                            <div class="text-slate-400">The Architect</div>
+                                            <div class="text-xs text-slate-500 mt-1">Strategic, independent, driven</div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Interests -->
+                                    <div class="mb-4">
+                                        <div class="text-xs text-slate-500 uppercase tracking-wider mb-2">Core Interests</div>
+                                        <div class="flex flex-wrap gap-2">
+                                            <span class="px-3 py-1 bg-blue-500/20 text-blue-300 text-sm rounded-full">Technology</span>
+                                            <span class="px-3 py-1 bg-green-500/20 text-green-300 text-sm rounded-full">Startups</span>
+                                            <span class="px-3 py-1 bg-amber-500/20 text-amber-300 text-sm rounded-full">Finance</span>
+                                            <span class="px-3 py-1 bg-purple-500/20 text-purple-300 text-sm rounded-full">AI/ML</span>
+                                            <span class="px-3 py-1 bg-red-500/20 text-red-300 text-sm rounded-full">Strategy</span>
+                                        </div>
+                                    </div>
+
+                                    <!-- Entertainment Taste -->
+                                    <div>
+                                        <div class="text-xs text-slate-500 uppercase tracking-wider mb-2">Entertainment Taste</div>
+                                        <div class="text-sm text-slate-300 space-y-1">
+                                            <div>• Prefers <span class="text-mnemosyne-400">psychological complexity</span> over action</div>
+                                            <div>• Drawn to <span class="text-mnemosyne-400">strategic masterminds</span> characters</div>
+                                            <div>• Values <span class="text-mnemosyne-400">moral ambiguity</span> in storytelling</div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Right: Communication Style -->
+                                <div>
+                                    <div class="text-xs text-slate-500 uppercase tracking-wider mb-3">Communication Style</div>
+                                    <div class="space-y-3 mb-6">
+                                        <div>
+                                            <div class="flex justify-between text-sm mb-1">
+                                                <span>Direct</span>
+                                                <span class="text-mnemosyne-400">85%</span>
+                                            </div>
+                                            <div class="h-2 bg-slate-700 rounded-full">
+                                                <div class="h-full bg-mnemosyne-500 rounded-full" style="width: 85%"></div>
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <div class="flex justify-between text-sm mb-1">
+                                                <span>Concise</span>
+                                                <span class="text-mnemosyne-400">90%</span>
+                                            </div>
+                                            <div class="h-2 bg-slate-700 rounded-full">
+                                                <div class="h-full bg-mnemosyne-500 rounded-full" style="width: 90%"></div>
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <div class="flex justify-between text-sm mb-1">
+                                                <span>Technical</span>
+                                                <span class="text-mnemosyne-400">75%</span>
+                                            </div>
+                                            <div class="h-2 bg-slate-700 rounded-full">
+                                                <div class="h-full bg-mnemosyne-500 rounded-full" style="width: 75%"></div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="text-xs text-slate-500 uppercase tracking-wider mb-3">Work Patterns</div>
+                                    <div class="bg-slate-800/30 rounded-lg p-3 space-y-2 text-sm">
+                                        <div class="flex items-center space-x-2">
+                                            <span>🌅</span>
+                                            <span>Deep work: <span class="text-mnemosyne-400">9-11am</span></span>
+                                        </div>
+                                        <div class="flex items-center space-x-2">
+                                            <span>🎨</span>
+                                            <span>Creative: <span class="text-mnemosyne-400">2-4pm</span></span>
+                                        </div>
+                                        <div class="flex items-center space-x-2">
+                                            <span>📧</span>
+                                            <span>Admin: <span class="text-mnemosyne-400">4-5pm</span></span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- What's Next -->
+                        <div class="text-center">
+                            <p class="text-slate-400 mb-4">Your persona will now enhance every AI interaction</p>
+                            <div class="flex flex-wrap justify-center gap-3">
+                                <button onclick="showView('dashboard')" class="bg-mnemosyne-600 hover:bg-mnemosyne-500 px-6 py-2 rounded-xl font-medium transition">
+                                    Go to Dashboard →
+                                </button>
+                                <button onclick="goToStep(1)" class="bg-slate-700 hover:bg-slate-600 px-6 py-2 rounded-xl font-medium transition">
+                                    ↻ Start Over
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Main Demo Area (Dashboard) -->
+        <section id="dashboard-section" class="px-6 pb-12 hidden">
+            <div class="max-w-7xl mx-auto">
+                <div class="grid lg:grid-cols-4 gap-6">
+
+                    <!-- Persona Sidebar -->
+                    <div class="lg:col-span-1 space-y-4">
+                        <!-- Dynamic Persona Card -->
+                        <div class="bg-slate-900/80 border border-slate-700 rounded-2xl p-5 glow-purple">
+                            <div class="flex items-center justify-between mb-4">
+                                <h3 class="font-semibold text-mnemosyne-300">Your Persona</h3>
+                                <span class="text-xs bg-mnemosyne-500/20 text-mnemosyne-300 px-2 py-1 rounded-full">Day 47</span>
+                            </div>
+
+                            <!-- MBTI Badge -->
+                            <div class="flex items-center space-x-3 mb-4 p-3 bg-slate-800/50 rounded-xl">
+                                <div class="text-3xl">🎯</div>
+                                <div>
+                                    <div class="text-2xl font-bold text-mnemosyne-400">INTJ</div>
+                                    <div class="text-xs text-slate-400">The Architect</div>
+                                </div>
+                            </div>
+
+                            <!-- Persona Traits -->
+                            <div class="space-y-3">
+                                <div class="text-xs text-slate-400 uppercase tracking-wider">Learned Preferences</div>
+
+                                <div class="flex flex-wrap gap-2">
+                                    <span class="px-2 py-1 bg-blue-500/20 text-blue-300 text-xs rounded-full">Tech</span>
+                                    <span class="px-2 py-1 bg-green-500/20 text-green-300 text-xs rounded-full">Startups</span>
+                                    <span class="px-2 py-1 bg-amber-500/20 text-amber-300 text-xs rounded-full">Finance</span>
+                                    <span class="px-2 py-1 bg-purple-500/20 text-purple-300 text-xs rounded-full">AI/ML</span>
+                                </div>
+
+                                <div class="pt-3 border-t border-slate-700">
+                                    <div class="text-xs text-slate-400 mb-2">Communication Style</div>
+                                    <div class="space-y-2">
+                                        <div class="flex justify-between text-sm">
+                                            <span class="text-slate-300">Direct</span>
+                                            <div class="flex items-center">
+                                                <div class="w-16 h-1.5 bg-slate-700 rounded-full mr-2">
+                                                    <div class="h-full bg-mnemosyne-500 rounded-full" style="width: 85%"></div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="flex justify-between text-sm">
+                                            <span class="text-slate-300">Concise</span>
+                                            <div class="flex items-center">
+                                                <div class="w-16 h-1.5 bg-slate-700 rounded-full mr-2">
+                                                    <div class="h-full bg-mnemosyne-500 rounded-full" style="width: 90%"></div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="flex justify-between text-sm">
+                                            <span class="text-slate-300">Technical</span>
+                                            <div class="flex items-center">
+                                                <div class="w-16 h-1.5 bg-slate-700 rounded-full mr-2">
+                                                    <div class="h-full bg-mnemosyne-500 rounded-full" style="width: 75%"></div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="pt-3 border-t border-slate-700">
+                                    <div class="text-xs text-slate-400 mb-2">Work Patterns</div>
+                                    <div class="text-sm text-slate-300">
+                                        <div class="flex items-center space-x-2 mb-1">
+                                            <span>🌅</span>
+                                            <span>Deep work: 9-11am</span>
+                                        </div>
+                                        <div class="flex items-center space-x-2 mb-1">
+                                            <span>🎨</span>
+                                            <span>Creative: 2-4pm</span>
+                                        </div>
+                                        <div class="flex items-center space-x-2">
+                                            <span>📧</span>
+                                            <span>Admin: 4-5pm</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Privacy Status -->
+                        <div class="bg-slate-900/80 border border-slate-700 rounded-2xl p-5">
+                            <div class="flex items-center space-x-2 mb-3">
+                                <span class="text-lg">🔒</span>
+                                <h3 class="font-semibold">Privacy First</h3>
+                            </div>
+                            <div class="space-y-2 text-sm">
+                                <div class="flex items-center justify-between">
+                                    <span class="text-slate-400">Raw data</span>
+                                    <span class="text-green-400">Local only</span>
+                                </div>
+                                <div class="flex items-center justify-between">
+                                    <span class="text-slate-400">Persona model</span>
+                                    <span class="text-green-400">On device</span>
+                                </div>
+                                <div class="flex items-center justify-between">
+                                    <span class="text-slate-400">Sync enabled</span>
+                                    <span class="text-mnemosyne-400">Insights only</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Local Model Status -->
+                        <div class="bg-slate-900/80 border border-slate-700 rounded-2xl p-5">
+                            <div class="flex items-center space-x-2 mb-3">
+                                <div class="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+                                <h3 class="font-semibold text-sm">Mnemosyne Engine</h3>
+                            </div>
+                            <div class="bg-slate-800/50 rounded-lg p-3 text-xs">
+                                <div class="text-mnemosyne-400 font-medium mb-2">Context Extraction Model</div>
+                                <div class="text-slate-500">Specialized for persona building</div>
+                                <div class="text-slate-500 mt-2">Last run: 6:00 AM</div>
+                                <div class="text-slate-500">Events: 1,247 processed</div>
+                            </div>
+                            <!-- Compute Toggle -->
+                            <div class="mt-3 pt-3 border-t border-slate-700">
+                                <div class="text-xs text-slate-500 mb-2">Compute Source</div>
+                                <div class="flex items-center space-x-2">
+                                    <div class="flex items-center space-x-1 px-2 py-1 bg-mnemosyne-500/20 border border-mnemosyne-500/30 rounded text-xs text-mnemosyne-400">
+                                        <span>⚡</span>
+                                        <span>NPU</span>
+                                    </div>
+                                    <div class="flex items-center space-x-1 px-2 py-1 bg-slate-700/50 rounded text-xs text-slate-500">
+                                        <span>🎮</span>
+                                        <span>GPU</span>
+                                    </div>
+                                    <div class="flex items-center space-x-1 px-2 py-1 bg-slate-700/50 rounded text-xs text-slate-500">
+                                        <span>💻</span>
+                                        <span>CPU</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Main Content Area -->
+                    <div class="lg:col-span-3 space-y-6">
+
+                        <!-- Why IrisGo as Entry Point -->
+                        <div class="bg-gradient-to-br from-mnemosyne-900/50 to-slate-900/80 border border-mnemosyne-500/30 rounded-2xl p-6 mb-6">
+                            <div class="flex items-center space-x-2 mb-4">
+                                <span class="text-2xl">🚀</span>
+                                <h3 class="font-semibold text-lg">IrisGo: Your Unified AI Gateway</h3>
+                            </div>
+                            <p class="text-sm text-slate-400 mb-4">For Mnemosyne to personalize your AI experience, your prompts need to flow through IrisGo first.</p>
+
+                            <!-- Flow Diagram -->
+                            <div class="flex items-center justify-center space-x-2 md:space-x-4 py-4 overflow-x-auto">
+                                <!-- You -->
+                                <div class="flex flex-col items-center flex-shrink-0">
+                                    <div class="w-12 h-12 bg-slate-700 rounded-full flex items-center justify-center mb-1">
+                                        <span class="text-xl">👤</span>
+                                    </div>
+                                    <span class="text-xs text-slate-400">You</span>
+                                </div>
+
+                                <div class="text-mnemosyne-400 flex-shrink-0">→</div>
+
+                                <!-- IrisGo -->
+                                <div class="flex flex-col items-center flex-shrink-0">
+                                    <div class="w-12 h-12 bg-gradient-to-br from-mnemosyne-600 to-mnemosyne-800 rounded-xl flex items-center justify-center mb-1 ring-2 ring-mnemosyne-400/50">
+                                        <span class="text-xl">🧠</span>
+                                    </div>
+                                    <span class="text-xs text-mnemosyne-400 font-medium">IrisGo</span>
+                                </div>
+
+                                <div class="text-mnemosyne-400 flex-shrink-0">→</div>
+
+                                <!-- Mnemosyne Layer -->
+                                <div class="flex flex-col items-center flex-shrink-0 px-3 py-2 bg-mnemosyne-500/10 rounded-lg border border-mnemosyne-500/30">
+                                    <div class="text-xs text-mnemosyne-300 mb-1">✨ Context Injection</div>
+                                    <div class="text-xs text-slate-500">+ Your persona</div>
+                                    <div class="text-xs text-slate-500">+ Preferences</div>
+                                    <div class="text-xs text-slate-500">+ Style</div>
+                                </div>
+
+                                <div class="text-mnemosyne-400 flex-shrink-0">→</div>
+
+                                <!-- AI Services -->
+                                <div class="flex flex-col items-center flex-shrink-0">
+                                    <div class="flex -space-x-2 mb-1">
+                                        <div class="w-8 h-8 bg-emerald-500/20 rounded-lg flex items-center justify-center border border-slate-600">🤖</div>
+                                        <div class="w-8 h-8 bg-purple-500/20 rounded-lg flex items-center justify-center border border-slate-600">📊</div>
+                                        <div class="w-8 h-8 bg-blue-500/20 rounded-lg flex items-center justify-center border border-slate-600">🦾</div>
+                                    </div>
+                                    <span class="text-xs text-slate-400">Any AI</span>
+                                </div>
+                            </div>
+
+                            <!-- Three Integration Modes -->
+                            <div class="grid md:grid-cols-3 gap-4 mt-4">
+                                <!-- Current: Via IrisGo -->
+                                <div class="bg-slate-800/50 rounded-xl p-4 border border-green-500/30">
+                                    <div class="flex items-center space-x-2 mb-2">
+                                        <span class="text-green-400 text-sm">✓</span>
+                                        <span class="text-sm font-medium text-green-400">IrisGo Gateway</span>
+                                    </div>
+                                    <p class="text-xs text-slate-400 mb-2">Use IrisGo as your prompt entry point.</p>
+                                    <div class="text-xs text-slate-500 bg-slate-900/50 rounded p-2 font-mono">
+                                        IrisGo → ChatGPT<br>
+                                        IrisGo → Gamma<br>
+                                        IrisGo → Claude
+                                    </div>
+                                </div>
+
+                                <!-- MCP Integration -->
+                                <div class="bg-slate-800/50 rounded-xl p-4 border border-cyan-500/30">
+                                    <div class="flex items-center space-x-2 mb-2">
+                                        <span class="text-cyan-400 text-sm">🔌</span>
+                                        <span class="text-sm font-medium text-cyan-400">MCP Server</span>
+                                    </div>
+                                    <p class="text-xs text-slate-400 mb-2">Direct integration via Model Context Protocol.</p>
+                                    <div class="text-xs text-slate-500 bg-slate-900/50 rounded p-2 font-mono">
+                                        Claude Desktop<br>
+                                        Cursor / Windsurf<br>
+                                        Any MCP Client
+                                    </div>
+                                </div>
+
+                                <!-- Future: Native Integration -->
+                                <div class="bg-slate-800/50 rounded-xl p-4 border border-amber-500/30">
+                                    <div class="flex items-center space-x-2 mb-2">
+                                        <span class="text-amber-400 text-sm">🔮</span>
+                                        <span class="text-sm font-medium text-amber-400">Native SDK</span>
+                                    </div>
+                                    <p class="text-xs text-slate-400 mb-2">AI services embed Mnemosyne directly.</p>
+                                    <div class="text-xs text-slate-500 bg-slate-900/50 rounded p-2 font-mono">
+                                        ChatGPT <span class="text-amber-400">+ SDK</span><br>
+                                        Gamma <span class="text-amber-400">+ SDK</span><br>
+                                        Partner APIs
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- MCP Integration Section -->
+                        <div class="bg-gradient-to-br from-cyan-900/20 to-slate-900/80 border border-cyan-500/30 rounded-2xl p-6">
+                            <div class="flex items-center justify-between mb-4">
+                                <div class="flex items-center space-x-2">
+                                    <span class="text-xl">🔌</span>
+                                    <h3 class="font-semibold text-lg">MCP Integration</h3>
+                                </div>
+                                <span class="text-xs bg-cyan-500/20 text-cyan-400 px-2 py-1 rounded-full">Model Context Protocol</span>
+                            </div>
+                            <p class="text-sm text-slate-400 mb-4">Connect Mnemosyne directly to any MCP-compatible AI client. Your persona context is automatically available.</p>
+
+                            <div class="grid md:grid-cols-2 gap-4">
+                                <!-- Supported Clients -->
+                                <div>
+                                    <div class="text-xs text-slate-500 uppercase tracking-wider mb-3">Supported Clients</div>
+                                    <div class="space-y-2">
+                                        <div class="flex items-center space-x-3 p-2 bg-slate-800/50 rounded-lg">
+                                            <span class="text-lg">🧠</span>
+                                            <div class="flex-1">
+                                                <div class="text-sm font-medium">Claude Desktop</div>
+                                                <div class="text-xs text-slate-500">Native MCP support</div>
+                                            </div>
+                                            <span class="text-xs text-green-400">Ready</span>
+                                        </div>
+                                        <div class="flex items-center space-x-3 p-2 bg-slate-800/50 rounded-lg">
+                                            <span class="text-lg">⌨️</span>
+                                            <div class="flex-1">
+                                                <div class="text-sm font-medium">Cursor / Windsurf</div>
+                                                <div class="text-xs text-slate-500">IDE integration</div>
+                                            </div>
+                                            <span class="text-xs text-green-400">Ready</span>
+                                        </div>
+                                        <div class="flex items-center space-x-3 p-2 bg-slate-800/50 rounded-lg">
+                                            <span class="text-lg">🤖</span>
+                                            <div class="flex-1">
+                                                <div class="text-sm font-medium">Claude Code</div>
+                                                <div class="text-xs text-slate-500">CLI assistant</div>
+                                            </div>
+                                            <span class="text-xs text-green-400">Ready</span>
+                                        </div>
+                                        <div class="flex items-center space-x-3 p-2 bg-slate-800/30 rounded-lg opacity-60">
+                                            <span class="text-lg">🔧</span>
+                                            <div class="flex-1">
+                                                <div class="text-sm font-medium">Custom MCP Clients</div>
+                                                <div class="text-xs text-slate-500">Any compatible app</div>
+                                            </div>
+                                            <span class="text-xs text-slate-400">Compatible</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Configuration Example -->
+                                <div>
+                                    <div class="text-xs text-slate-500 uppercase tracking-wider mb-3">Quick Setup</div>
+                                    <div class="bg-slate-950 rounded-xl p-4 font-mono text-xs overflow-x-auto">
+                                        <div class="text-slate-500 mb-2">// claude_desktop_config.json</div>
+                                        <div class="text-slate-300">{</div>
+                                        <div class="text-slate-300 ml-2">"mcpServers": {</div>
+                                        <div class="text-cyan-400 ml-4">"mnemosyne"</div><div class="text-slate-300">: {</div>
+                                        <div class="text-slate-300 ml-6">"command": <span class="text-green-400">"mnemosyne"</span>,</div>
+                                        <div class="text-slate-300 ml-6">"args": [<span class="text-green-400">"serve"</span>]</div>
+                                        <div class="text-slate-300 ml-4">}</div>
+                                        <div class="text-slate-300 ml-2">}</div>
+                                        <div class="text-slate-300">}</div>
+                                    </div>
+                                    <div class="mt-3 text-xs text-slate-500">
+                                        Once configured, Claude automatically receives your persona context with every conversation.
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- MCP Tools Provided -->
+                            <div class="mt-4 pt-4 border-t border-slate-700">
+                                <div class="text-xs text-slate-500 uppercase tracking-wider mb-3">Available MCP Tools</div>
+                                <div class="flex flex-wrap gap-2">
+                                    <span class="px-3 py-1 bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 text-xs rounded-full">get_persona</span>
+                                    <span class="px-3 py-1 bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 text-xs rounded-full">get_context</span>
+                                    <span class="px-3 py-1 bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 text-xs rounded-full">get_preferences</span>
+                                    <span class="px-3 py-1 bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 text-xs rounded-full">add_memory</span>
+                                    <span class="px-3 py-1 bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 text-xs rounded-full">search_knowledge</span>
+                                    <span class="px-3 py-1 bg-slate-700/50 text-slate-400 text-xs rounded-full">+ more</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Connected Apps -->
+                        <div class="bg-slate-900/80 border border-slate-700 rounded-2xl p-6">
+                            <div class="flex items-center justify-between mb-4">
+                                <h3 class="font-semibold text-lg">Connected Apps & Services</h3>
+                                <button class="text-sm text-mnemosyne-400 hover:text-mnemosyne-300">+ Add More</button>
+                            </div>
+                            <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3" id="connected-apps">
+                                <!-- Apps will be dynamically rendered -->
+                            </div>
+                        </div>
+
+                        <!-- Interactive Demo -->
+                        <div class="bg-slate-900/80 border border-slate-700 rounded-2xl p-6">
+                            <div class="flex items-center justify-between mb-4">
+                                <div>
+                                    <h3 class="font-semibold text-lg">Try It: IrisGo Gateway</h3>
+                                    <p class="text-xs text-slate-500">Your prompt flows through IrisGo → Mnemosyne → AI</p>
+                                </div>
+                                <div class="flex items-center space-x-2">
+                                    <span class="text-sm text-slate-400">Target:</span>
+                                    <select id="target-app" class="bg-slate-800 border border-slate-600 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:border-mnemosyne-500">
+                                        <option value="chatgpt">ChatGPT</option>
+                                        <option value="gamma">Gamma</option>
+                                        <option value="manus">Manus</option>
+                                        <option value="claude">Claude</option>
+                                        <option value="perplexity">Perplexity</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <!-- Input Area -->
+                            <div class="mb-4">
+                                <label class="text-sm text-slate-400 mb-2 block">Your Prompt</label>
+                                <div class="relative">
+                                    <textarea id="user-prompt"
+                                        class="w-full bg-slate-800 border border-slate-600 rounded-xl p-4 text-white placeholder-slate-500 focus:outline-none focus:border-mnemosyne-500 resize-none"
+                                        rows="2"
+                                        placeholder="Try: 'Help me write a pitch deck' or 'Create a presentation about AI'"
+                                    ></textarea>
+                                </div>
+                                <div class="flex flex-wrap gap-2 mt-2">
+                                    <button onclick="setPrompt('Help me write a pitch deck for investors')" class="text-xs bg-slate-800 hover:bg-slate-700 px-3 py-1.5 rounded-lg transition">Pitch deck</button>
+                                    <button onclick="setPrompt('Create a presentation about our Q4 results')" class="text-xs bg-slate-800 hover:bg-slate-700 px-3 py-1.5 rounded-lg transition">Presentation</button>
+                                    <button onclick="setPrompt('Write an email to schedule a meeting')" class="text-xs bg-slate-800 hover:bg-slate-700 px-3 py-1.5 rounded-lg transition">Email</button>
+                                    <button onclick="setPrompt('Summarize this article for me')" class="text-xs bg-slate-800 hover:bg-slate-700 px-3 py-1.5 rounded-lg transition">Summarize</button>
+                                </div>
+                            </div>
+
+                            <!-- Process Button -->
+                            <button onclick="processPrompt()" id="process-btn" class="w-full bg-gradient-to-r from-mnemosyne-600 to-mnemosyne-500 hover:from-mnemosyne-500 hover:to-mnemosyne-400 py-3 rounded-xl font-semibold transition flex items-center justify-center space-x-2">
+                                <span>🧠</span>
+                                <span>Enhance with Mnemosyne</span>
+                            </button>
+
+                            <!-- Results Area -->
+                            <div id="results-area" class="mt-6 hidden">
+                                <!-- Context Injection Preview -->
+                                <div class="mb-4">
+                                    <div class="flex items-center space-x-2 mb-2">
+                                        <span class="text-mnemosyne-400">⚡</span>
+                                        <span class="text-sm font-medium text-mnemosyne-300">Context Injected</span>
+                                    </div>
+                                    <div id="context-preview" class="bg-mnemosyne-500/10 border border-mnemosyne-500/30 rounded-xl p-4 text-sm">
+                                        <!-- Context will be shown here -->
+                                    </div>
+                                </div>
+
+                                <!-- Comparison -->
+                                <div class="grid md:grid-cols-2 gap-4">
+                                    <!-- Without Mnemosyne -->
+                                    <div class="bg-slate-800/50 rounded-xl p-4">
+                                        <div class="flex items-center space-x-2 mb-3">
+                                            <span class="text-slate-400">❌</span>
+                                            <span class="text-sm font-medium text-slate-400">Without Mnemosyne</span>
+                                        </div>
+                                        <div id="result-without" class="text-sm text-slate-300 leading-relaxed">
+                                            <!-- Generic result -->
+                                        </div>
+                                    </div>
+
+                                    <!-- With Mnemosyne -->
+                                    <div class="bg-gradient-to-br from-mnemosyne-500/10 to-purple-500/10 border border-mnemosyne-500/30 rounded-xl p-4">
+                                        <div class="flex items-center space-x-2 mb-3">
+                                            <span class="text-mnemosyne-400">✨</span>
+                                            <span class="text-sm font-medium text-mnemosyne-300">With Mnemosyne</span>
+                                        </div>
+                                        <div id="result-with" class="text-sm text-slate-200 leading-relaxed">
+                                            <!-- Personalized result -->
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Action Button -->
+                                <div class="mt-4 flex justify-end">
+                                    <button id="send-to-app" class="bg-slate-700 hover:bg-slate-600 px-4 py-2 rounded-lg text-sm transition flex items-center space-x-2">
+                                        <span>Send to</span>
+                                        <span id="target-app-name" class="text-mnemosyne-400">ChatGPT</span>
+                                        <span>→</span>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Recent Context Injections -->
+                        <div class="bg-slate-900/80 border border-slate-700 rounded-2xl p-6">
+                            <h3 class="font-semibold text-lg mb-4">Recent Enhancements</h3>
+                            <div class="space-y-3" id="recent-enhancements">
+                                <!-- Recent items will be shown here -->
+                            </div>
+                        </div>
+
+                        <!-- Conversation Learning Section -->
+                        <div class="bg-gradient-to-br from-emerald-900/20 to-slate-900/80 border border-emerald-500/30 rounded-2xl p-6">
+                            <div class="flex items-center justify-between mb-4">
+                                <div class="flex items-center space-x-2">
+                                    <span class="text-xl">💬</span>
+                                    <h3 class="font-semibold text-lg">Learning from Conversations</h3>
+                                </div>
+                                <span class="text-xs bg-emerald-500/20 text-emerald-400 px-2 py-1 rounded-full">Real-time</span>
+                            </div>
+                            <p class="text-sm text-slate-400 mb-4">Every conversation reveals something about you. Mnemosyne learns passively from your AI interactions.</p>
+
+                            <!-- Two Learning Modes -->
+                            <div class="grid md:grid-cols-2 gap-4 mb-4">
+                                <div class="bg-slate-800/50 rounded-xl p-4">
+                                    <div class="flex items-center space-x-2 mb-2">
+                                        <span class="text-emerald-400">📥</span>
+                                        <span class="text-sm font-medium text-emerald-400">Passive Learning</span>
+                                    </div>
+                                    <p class="text-xs text-slate-400 mb-2">From connected apps & sources</p>
+                                    <div class="text-xs text-slate-500">
+                                        Medium articles, Calendar, Browser history, etc.
+                                    </div>
+                                </div>
+                                <div class="bg-emerald-500/10 border border-emerald-500/30 rounded-xl p-4">
+                                    <div class="flex items-center space-x-2 mb-2">
+                                        <span class="text-emerald-400">💬</span>
+                                        <span class="text-sm font-medium text-emerald-400">Active Learning</span>
+                                    </div>
+                                    <p class="text-xs text-slate-400 mb-2">From every AI conversation</p>
+                                    <div class="text-xs text-slate-500">
+                                        Zero setup, learns as you chat
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- What We Learn From Conversations -->
+                            <div class="bg-slate-800/30 rounded-xl p-4 mb-4">
+                                <div class="text-xs text-slate-500 uppercase tracking-wider mb-3">What conversations reveal</div>
+                                <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                    <div class="text-center p-2">
+                                        <div class="text-lg mb-1">❓</div>
+                                        <div class="text-xs text-slate-300">Questions asked</div>
+                                        <div class="text-xs text-emerald-400">→ Interests</div>
+                                    </div>
+                                    <div class="text-center p-2">
+                                        <div class="text-lg mb-1">✍️</div>
+                                        <div class="text-xs text-slate-300">How you write</div>
+                                        <div class="text-xs text-emerald-400">→ Style</div>
+                                    </div>
+                                    <div class="text-center p-2">
+                                        <div class="text-lg mb-1">🔄</div>
+                                        <div class="text-xs text-slate-300">Corrections made</div>
+                                        <div class="text-xs text-emerald-400">→ Preferences</div>
+                                    </div>
+                                    <div class="text-center p-2">
+                                        <div class="text-lg mb-1">✅</div>
+                                        <div class="text-xs text-slate-300">Choices selected</div>
+                                        <div class="text-xs text-emerald-400">→ Values</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Live Learning Demo -->
+                            <div class="bg-slate-950 rounded-xl border border-slate-700 overflow-hidden">
+                                <div class="bg-slate-800 px-4 py-2 flex items-center justify-between border-b border-slate-700">
+                                    <span class="text-xs text-slate-400">Live Learning Example</span>
+                                    <div class="flex items-center space-x-1">
+                                        <div class="w-2 h-2 bg-emerald-400 rounded-full animate-pulse"></div>
+                                        <span class="text-xs text-emerald-400">Analyzing</span>
+                                    </div>
+                                </div>
+                                <div class="p-4 space-y-3">
+                                    <!-- User Message -->
+                                    <div class="flex justify-end">
+                                        <div class="bg-slate-700 rounded-xl rounded-br-sm px-3 py-2 max-w-[80%]">
+                                            <p class="text-xs">Can you make the tone more casual? I don't like overly formal writing.</p>
+                                        </div>
+                                    </div>
+                                    <!-- Insight Extracted -->
+                                    <div class="flex items-start space-x-2">
+                                        <div class="w-6 h-6 bg-emerald-500/20 rounded-lg flex items-center justify-center flex-shrink-0">
+                                            <span class="text-xs">🧠</span>
+                                        </div>
+                                        <div class="bg-emerald-500/10 border border-emerald-500/30 rounded-xl rounded-bl-sm px-3 py-2 flex-1">
+                                            <div class="text-xs text-emerald-400 mb-1">Insight extracted:</div>
+                                            <div class="flex flex-wrap gap-1">
+                                                <span class="px-2 py-0.5 bg-emerald-500/20 text-emerald-300 text-xs rounded">Prefers casual tone</span>
+                                                <span class="px-2 py-0.5 bg-emerald-500/20 text-emerald-300 text-xs rounded">Dislikes formal</span>
+                                            </div>
+                                            <div class="text-xs text-slate-500 mt-1">→ Updated: Communication Style</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Privacy Note -->
+                            <div class="mt-4 flex items-center space-x-2 text-xs text-slate-500">
+                                <span>🔒</span>
+                                <span>Conversation analysis happens 100% locally. Your chats are never stored on our servers.</span>
+                            </div>
+                        </div>
+
+                        <!-- Native Integration Vision -->
+                        <div class="bg-gradient-to-br from-amber-900/20 to-slate-900/80 border border-amber-500/30 rounded-2xl p-6">
+                            <div class="flex items-center justify-between mb-4">
+                                <div class="flex items-center space-x-2">
+                                    <span class="text-xl">🔮</span>
+                                    <h3 class="font-semibold text-lg">Vision: Native Integration</h3>
+                                </div>
+                                <span class="text-xs bg-amber-500/20 text-amber-400 px-2 py-1 rounded-full">Future</span>
+                            </div>
+                            <p class="text-sm text-slate-400 mb-4">What if AI services integrated Mnemosyne directly? No gateway needed - context is always there.</p>
+
+                            <!-- Mockup: ChatGPT with Mnemosyne -->
+                            <div class="bg-slate-950 rounded-xl border border-slate-700 overflow-hidden">
+                                <!-- ChatGPT Header -->
+                                <div class="bg-slate-800 px-4 py-3 flex items-center justify-between border-b border-slate-700">
+                                    <div class="flex items-center space-x-2">
+                                        <span class="text-lg">🤖</span>
+                                        <span class="font-medium">ChatGPT</span>
+                                        <span class="text-xs bg-mnemosyne-500/20 text-mnemosyne-400 px-2 py-0.5 rounded-full flex items-center space-x-1">
+                                            <span>🧠</span>
+                                            <span>Mnemosyne</span>
+                                        </span>
+                                    </div>
+                                    <div class="flex items-center space-x-2">
+                                        <div class="w-2 h-2 bg-green-400 rounded-full"></div>
+                                        <span class="text-xs text-slate-400">Connected</span>
+                                    </div>
+                                </div>
+
+                                <!-- Chat Area -->
+                                <div class="p-4 space-y-4">
+                                    <!-- User Message -->
+                                    <div class="flex justify-end">
+                                        <div class="bg-slate-700 rounded-2xl rounded-br-sm px-4 py-2 max-w-[80%]">
+                                            <p class="text-sm">Help me write a pitch deck</p>
+                                        </div>
+                                    </div>
+
+                                    <!-- Mnemosyne Context Badge -->
+                                    <div class="flex items-center space-x-2 text-xs text-mnemosyne-400">
+                                        <span>✨</span>
+                                        <span>Mnemosyne context automatically applied</span>
+                                        <button class="text-slate-500 hover:text-slate-300 underline">View</button>
+                                    </div>
+
+                                    <!-- AI Response -->
+                                    <div class="flex justify-start">
+                                        <div class="bg-slate-800/50 border border-slate-700 rounded-2xl rounded-bl-sm px-4 py-3 max-w-[85%]">
+                                            <p class="text-sm text-slate-200 leading-relaxed">
+                                                Based on <span class="text-mnemosyne-400">your profile</span>, here's a <strong>data-first pitch deck</strong> tailored for Series A:
+                                            </p>
+                                            <ul class="text-sm text-slate-300 mt-2 space-y-1 list-disc list-inside">
+                                                <li><strong>12 slides</strong> (matches your preference)</li>
+                                                <li>Lead with <strong>metrics</strong> (your style: numbers first)</li>
+                                                <li>Include <strong>competitive moat</strong> section (you value this)</li>
+                                                <li>Use <strong>dark theme</strong> with purple accents</li>
+                                            </ul>
+                                            <p class="text-xs text-mnemosyne-400/70 mt-3 flex items-center space-x-1">
+                                                <span>🧠</span>
+                                                <span>Personalized via Mnemosyne</span>
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Input Area -->
+                                <div class="border-t border-slate-700 p-4">
+                                    <div class="flex items-center space-x-3">
+                                        <div class="flex-1 bg-slate-800 rounded-xl px-4 py-3 text-sm text-slate-500">
+                                            Message ChatGPT...
+                                        </div>
+                                        <button class="w-10 h-10 bg-slate-700 rounded-xl flex items-center justify-center">
+                                            <span>↑</span>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Benefits -->
+                            <div class="grid md:grid-cols-3 gap-3 mt-4">
+                                <div class="bg-slate-800/30 rounded-lg p-3 text-center">
+                                    <div class="text-lg mb-1">⚡</div>
+                                    <div class="text-xs text-slate-400">Zero friction</div>
+                                    <div class="text-xs text-slate-500">Context always there</div>
+                                </div>
+                                <div class="bg-slate-800/30 rounded-lg p-3 text-center">
+                                    <div class="text-lg mb-1">🔄</div>
+                                    <div class="text-xs text-slate-400">Seamless UX</div>
+                                    <div class="text-xs text-slate-500">No app switching</div>
+                                </div>
+                                <div class="bg-slate-800/30 rounded-lg p-3 text-center">
+                                    <div class="text-lg mb-1">🤝</div>
+                                    <div class="text-xs text-slate-400">Partner ecosystem</div>
+                                    <div class="text-xs text-slate-500">AI services + IrisGo</div>
+                                </div>
+                            </div>
+
+                            <!-- CTA -->
+                            <div class="mt-4 text-center">
+                                <p class="text-xs text-slate-500">Interested in integrating Mnemosyne into your AI product?</p>
+                                <button class="mt-2 text-sm text-amber-400 hover:text-amber-300 underline">Partner with IrisGo →</button>
+                            </div>
+                        </div>
+
+                        <!-- Manual Input Section -->
+                        <div class="bg-slate-900/80 border border-mnemosyne-500/30 rounded-2xl p-6">
+                            <div class="flex items-center justify-between mb-4">
+                                <div class="flex items-center space-x-2">
+                                    <span class="text-xl">✏️</span>
+                                    <h3 class="font-semibold text-lg">Tell Mnemosyne About You</h3>
+                                </div>
+                                <button onclick="toggleManualInput()" id="manual-input-toggle" class="text-sm text-mnemosyne-400 hover:text-mnemosyne-300 flex items-center space-x-1">
+                                    <span>Add More</span>
+                                    <span id="toggle-icon">+</span>
+                                </button>
+                            </div>
+                            <p class="text-sm text-slate-400 mb-4">Some preferences are best shared directly. Tell us what you like and AI will analyze your taste.</p>
+
+                            <!-- Manual Input Categories -->
+                            <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4" id="manual-categories">
+                                <!-- Categories will be rendered by JS -->
+                            </div>
+
+                            <!-- Existing Manual Entries -->
+                            <div class="space-y-3" id="manual-entries">
+                                <!-- Entries will be rendered by JS -->
+                            </div>
+
+                            <!-- Add New Entry Form (hidden by default) -->
+                            <div id="manual-input-form" class="hidden mt-4 p-4 bg-slate-800/50 rounded-xl border border-slate-600">
+                                <div class="flex items-center space-x-2 mb-3">
+                                    <select id="new-entry-category" class="bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-mnemosyne-500 flex-shrink-0">
+                                        <option value="anime">Anime</option>
+                                        <option value="tv">TV Series</option>
+                                        <option value="movie">Movies</option>
+                                        <option value="book">Books</option>
+                                        <option value="music">Music</option>
+                                        <option value="game">Games</option>
+                                        <option value="hobby">Hobbies</option>
+                                        <option value="food">Food</option>
+                                        <option value="other">Other</option>
+                                    </select>
+                                    <input type="text" id="new-entry-value" placeholder="e.g., Attack on Titan, Breaking Bad..." class="flex-1 bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-mnemosyne-500">
+                                    <button onclick="addManualEntry()" class="bg-mnemosyne-600 hover:bg-mnemosyne-500 px-4 py-2 rounded-lg text-sm font-medium transition">Add</button>
+                                </div>
+                                <p class="text-xs text-slate-500">Just provide the title - Mnemosyne will analyze themes, genres, and preferences automatically.</p>
+                            </div>
+                        </div>
+
+                        <!-- Persona Building Sources -->
+                        <div class="bg-slate-900/80 border border-slate-700 rounded-2xl p-6">
+                            <div class="flex items-center justify-between mb-4">
+                                <h3 class="font-semibold text-lg">Build Your Persona</h3>
+                                <span class="text-xs text-mnemosyne-400">8 of 20 sources connected</span>
+                            </div>
+                            <p class="text-sm text-slate-400 mb-4">The more sources you connect, the better Mnemosyne understands you.</p>
+
+                            <!-- Source Categories -->
+                            <div class="space-y-4">
+                                <!-- Active Sources -->
+                                <div>
+                                    <div class="text-xs text-slate-500 uppercase tracking-wider mb-2">Active Sources</div>
+                                    <div class="grid grid-cols-2 gap-2" id="active-sources">
+                                        <!-- Will be populated by JS -->
+                                    </div>
+                                </div>
+
+                                <!-- Available Sources -->
+                                <div>
+                                    <div class="text-xs text-slate-500 uppercase tracking-wider mb-2">Available to Connect</div>
+                                    <div class="grid grid-cols-2 gap-2" id="available-sources">
+                                        <!-- Will be populated by JS -->
+                                    </div>
+                                </div>
+
+                                <!-- Coming Soon -->
+                                <div>
+                                    <div class="text-xs text-slate-500 uppercase tracking-wider mb-2">Coming Soon</div>
+                                    <div class="grid grid-cols-2 gap-2" id="coming-sources">
+                                        <!-- Will be populated by JS -->
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Persona Completeness -->
+                            <div class="mt-4 pt-4 border-t border-slate-700">
+                                <div class="flex items-center justify-between mb-2">
+                                    <span class="text-sm text-slate-400">Persona Completeness</span>
+                                    <span class="text-sm text-mnemosyne-400 font-medium">78%</span>
+                                </div>
+                                <div class="h-2 bg-slate-700 rounded-full overflow-hidden">
+                                    <div class="h-full bg-gradient-to-r from-mnemosyne-600 to-mnemosyne-400 rounded-full" style="width: 78%"></div>
+                                </div>
+                                <p class="text-xs text-slate-500 mt-2">Connect 3 more sources to reach Expert level</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- How It Works Section -->
+        <section class="px-6 pb-12">
+            <div class="max-w-7xl mx-auto">
+                <div class="bg-slate-900/80 border border-slate-700 rounded-2xl p-8">
+                    <h2 class="text-2xl font-bold text-center mb-8">How Mnemosyne Learns You</h2>
+
+                    <div class="grid md:grid-cols-4 gap-6">
+                        <!-- Step 1 -->
+                        <div class="text-center">
+                            <div class="w-16 h-16 bg-mnemosyne-500/20 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                                <span class="text-3xl">📥</span>
+                            </div>
+                            <h3 class="font-semibold mb-2">1. Connect Sources</h3>
+                            <p class="text-sm text-slate-400">Link your apps, files, and behaviors to build context</p>
+                        </div>
+
+                        <!-- Step 2 -->
+                        <div class="text-center">
+                            <div class="w-16 h-16 bg-mnemosyne-500/20 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                                <span class="text-3xl">🌙</span>
+                            </div>
+                            <h3 class="font-semibold mb-2">2. Local Processing</h3>
+                            <p class="text-sm text-slate-400">Specialized model runs on your device (NPU/GPU/CPU)</p>
+                        </div>
+
+                        <!-- Step 3 -->
+                        <div class="text-center">
+                            <div class="w-16 h-16 bg-mnemosyne-500/20 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                                <span class="text-3xl">🧬</span>
+                            </div>
+                            <h3 class="font-semibold mb-2">3. Build Persona</h3>
+                            <p class="text-sm text-slate-400">Dynamic profile evolves with your behavior</p>
+                        </div>
+
+                        <!-- Step 4 -->
+                        <div class="text-center">
+                            <div class="w-16 h-16 bg-mnemosyne-500/20 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                                <span class="text-3xl">✨</span>
+                            </div>
+                            <h3 class="font-semibold mb-2">4. Enhance AI</h3>
+                            <p class="text-sm text-slate-400">Every AI interaction is personalized for you</p>
+                        </div>
+                    </div>
+
+                    <!-- Privacy Emphasis -->
+                    <div class="mt-8 bg-green-500/10 border border-green-500/30 rounded-xl p-4 flex items-center space-x-4">
+                        <div class="w-12 h-12 bg-green-500/20 rounded-xl flex items-center justify-center flex-shrink-0">
+                            <span class="text-2xl">🔐</span>
+                        </div>
+                        <div>
+                            <h4 class="font-semibold text-green-400">100% Private</h4>
+                            <p class="text-sm text-slate-400">All processing happens locally on your device. Raw data never leaves. Only you control your persona.</p>
+                        </div>
+                    </div>
+
+                    <!-- Mnemosyne Engine Section -->
+                    <div class="mt-8 bg-mnemosyne-500/10 border border-mnemosyne-500/30 rounded-xl p-6">
+                        <div class="flex items-start space-x-4">
+                            <div class="w-14 h-14 bg-gradient-to-br from-mnemosyne-500 to-mnemosyne-700 rounded-xl flex items-center justify-center flex-shrink-0">
+                                <span class="text-2xl">🧠</span>
+                            </div>
+                            <div class="flex-1">
+                                <h4 class="font-semibold text-mnemosyne-300 mb-1">Mnemosyne Context Engine</h4>
+                                <p class="text-sm text-slate-400 mb-3">A specialized local model fine-tuned for persona extraction and context understanding.</p>
+
+                                <div class="grid md:grid-cols-3 gap-3">
+                                    <div class="bg-slate-800/50 rounded-lg p-3">
+                                        <div class="text-xs text-slate-500 mb-1">Optimized For</div>
+                                        <div class="text-sm text-slate-300">Persona traits, preferences, communication patterns</div>
+                                    </div>
+                                    <div class="bg-slate-800/50 rounded-lg p-3">
+                                        <div class="text-xs text-slate-500 mb-1">Model Size</div>
+                                        <div class="text-sm text-slate-300">Compact (<1B params) for fast local inference</div>
+                                    </div>
+                                    <div class="bg-slate-800/50 rounded-lg p-3">
+                                        <div class="text-xs text-slate-500 mb-1">Compute Flexibility</div>
+                                        <div class="flex items-center space-x-2 mt-1">
+                                            <span class="text-xs px-2 py-0.5 bg-mnemosyne-500/20 text-mnemosyne-400 rounded">NPU</span>
+                                            <span class="text-xs px-2 py-0.5 bg-slate-700 text-slate-400 rounded">GPU</span>
+                                            <span class="text-xs px-2 py-0.5 bg-slate-700 text-slate-400 rounded">CPU</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <script>
+        // Connected Apps Data
+        const apps = [
+            { id: 'chatgpt', name: 'ChatGPT', icon: '🤖', connected: true, color: 'bg-emerald-500/20' },
+            { id: 'gamma', name: 'Gamma', icon: '📊', connected: true, color: 'bg-purple-500/20' },
+            { id: 'manus', name: 'Manus', icon: '🦾', connected: true, color: 'bg-blue-500/20' },
+            { id: 'claude', name: 'Claude', icon: '🧠', connected: true, color: 'bg-orange-500/20' },
+            { id: 'perplexity', name: 'Perplexity', icon: '🔍', connected: true, color: 'bg-cyan-500/20' },
+            { id: 'notion', name: 'Notion', icon: '📝', connected: false, color: 'bg-slate-500/20' },
+            { id: 'linear', name: 'Linear', icon: '📋', connected: false, color: 'bg-indigo-500/20' },
+            { id: 'slack', name: 'Slack', icon: '💬', connected: false, color: 'bg-pink-500/20' },
+            { id: 'helix', name: 'Helix', icon: '⚡', connected: true, color: 'bg-green-500/20', special: true },
+            { id: 'more', name: 'More...', icon: '+', connected: false, color: 'bg-slate-700/50', isAdd: true },
+        ];
+
+        // Demo responses based on app and prompt type
+        const demoResponses = {
+            'pitch deck': {
+                context: `<strong>Persona Context Applied:</strong><br>
+                    • INTJ: Prefers data-driven, structured presentations<br>
+                    • Industry: AI/Tech Startups (Series A focus)<br>
+                    • Style: Direct, minimal fluff, numbers-focused<br>
+                    • Past decks: Averaged 12 slides, heavy on market data`,
+                without: `Here's a standard pitch deck outline:
+                    <br><br>1. Title slide
+                    <br>2. Problem
+                    <br>3. Solution
+                    <br>4. Market size
+                    <br>5. Business model
+                    <br>6. Traction
+                    <br>7. Team
+                    <br>8. Ask`,
+                with: `Based on your profile, here's a <strong>data-first pitch deck</strong> optimized for Series A:
+                    <br><br>1. <strong>Hook</strong> - Lead with your strongest metric
+                    <br>2. <strong>Market</strong> - TAM/SAM/SOM with sources (you prefer McKinsey/Gartner)
+                    <br>3. <strong>Problem</strong> - Keep to 1 slide, you like concise
+                    <br>4. <strong>Solution Demo</strong> - Interactive, not just screenshots
+                    <br>5. <strong>Traction</strong> - MRR curve, cohort retention
+                    <br>6. <strong>Unit Economics</strong> - LTV:CAC, payback period
+                    <br>7. <strong>Competitive Moat</strong> - Technical differentiation
+                    <br>8. <strong>Team</strong> - Focus on relevant exits/experience
+                    <br>9. <strong>Ask</strong> - Specific use of funds breakdown
+                    <br><br><em>Note: Your past successful decks averaged 12 slides. This matches that.</em>`
+            },
+            'presentation': {
+                context: `<strong>Persona Context Applied:</strong><br>
+                    • Presentation style: Visual-heavy, minimal text<br>
+                    • Prefers: Dark themes, modern design<br>
+                    • Gamma history: 8 presentations, avg 15 slides<br>
+                    • Color preference: Purple/blue gradients`,
+                without: `I'll create a presentation about Q4 results with these slides:
+                    <br><br>• Overview
+                    <br>• Key metrics
+                    <br>• Highlights
+                    <br>• Challenges
+                    <br>• Next steps`,
+                with: `Creating a <strong>visual-first Q4 presentation</strong> in your style:
+                    <br><br>📊 <strong>Design:</strong> Dark theme with purple accents (your preference)
+                    <br>📈 <strong>Data viz:</strong> Interactive charts, not tables
+                    <br>📝 <strong>Text:</strong> Max 20 words per slide (your pattern)
+                    <br><br><strong>Suggested flow:</strong>
+                    <br>1. Impact number hero slide
+                    <br>2. Revenue growth visualization
+                    <br>3. User metrics dashboard-style
+                    <br>4. Key wins (icon-based)
+                    <br>5. Learnings (brief)
+                    <br>6. Q1 preview
+                    <br><br><em>Auto-applying your Gamma template: "Modern Dark"</em>`
+            },
+            'email': {
+                context: `<strong>Persona Context Applied:</strong><br>
+                    • Email style: Brief, action-oriented<br>
+                    • Typical length: 3-5 sentences<br>
+                    • Sign-off: Usually "Best," or none<br>
+                    • Meeting preference: Morning slots (9-11am)`,
+                without: `Subject: Meeting Request
+
+Dear [Name],
+
+I hope this email finds you well. I am writing to request a meeting with you to discuss [topic]. Please let me know your availability at your earliest convenience.
+
+Thank you for your time and consideration.
+
+Best regards,
+[Your name]`,
+                with: `Subject: Quick sync re: [Topic]?
+
+Hey [Name],
+
+Want to grab 30 min this week to discuss [topic]? I'm thinking we can cover X and Y.
+
+Free slots:
+• Tue 9:30am
+• Wed 10am
+• Thu 9am
+
+Let me know what works.
+
+Best,
+Leo
+
+<br><br><em>✓ Matched your brief style (4 sentences)
+<br>✓ Suggested morning slots (your productive hours)
+<br>✓ Used your typical sign-off</em>`
+            },
+            'summarize': {
+                context: `<strong>Persona Context Applied:</strong><br>
+                    • Summary style: Bullet points preferred<br>
+                    • Focus areas: Business implications, numbers<br>
+                    • Length preference: Under 200 words<br>
+                    • Always wants: "So what?" takeaway`,
+                without: `This article discusses the recent developments in artificial intelligence and its impact on various industries. The author presents several viewpoints from industry experts and analyzes the potential implications for businesses. Key points include the growth of AI adoption, challenges faced by organizations, and future predictions from analysts.`,
+                with: `<strong>TL;DR:</strong> AI adoption hitting inflection point
+                    <br><br><strong>Key Numbers:</strong>
+                    <br>• 67% enterprises now using AI (up from 42%)
+                    <br>• $200B market by 2025
+                    <br>• 3.2x ROI average for early adopters
+                    <br><br><strong>What Matters:</strong>
+                    <br>• Infrastructure players winning (your thesis aligns)
+                    <br>• Enterprise SaaS integrating AI fastest
+                    <br>• Talent shortage creating M&A opportunities
+                    <br><br><strong>So What?</strong> Validates your focus on AI-native tools. Consider the infrastructure angle for your next investment memo.
+                    <br><br><em>✓ Extracted numbers (your preference)
+                    <br>✓ Added "So what?" (you always ask this)
+                    <br>✓ Connected to your interests</em>`
+            }
+        };
+
+        // Recent enhancements data
+        const recentEnhancements = [
+            { app: 'Gamma', icon: '📊', prompt: 'Create investor update deck', time: '2 hours ago', boost: '+3 context points' },
+            { app: 'ChatGPT', icon: '🤖', prompt: 'Draft product requirements', time: '5 hours ago', boost: '+5 context points' },
+            { app: 'Manus', icon: '🦾', prompt: 'Research competitor pricing', time: 'Yesterday', boost: '+2 context points' },
+            { app: 'Claude', icon: '🧠', prompt: 'Review technical architecture', time: 'Yesterday', boost: '+4 context points' },
+        ];
+
+        // Initialize
+        function init() {
+            renderApps();
+            renderRecentEnhancements();
+
+            // Update target app name on change
+            document.getElementById('target-app').addEventListener('change', function() {
+                document.getElementById('target-app-name').textContent = this.options[this.selectedIndex].text;
+            });
+        }
+
+        // Render connected apps
+        function renderApps() {
+            const container = document.getElementById('connected-apps');
+            container.innerHTML = apps.map(app => `
+                <div class="app-card relative ${app.color} ${app.connected ? 'connected' : ''} border ${app.connected ? 'border-green-500/30' : 'border-slate-600'} rounded-xl p-3 cursor-pointer card-glow ${app.special ? 'ring-2 ring-green-500/50' : ''}">
+                    <div class="text-2xl mb-1">${app.icon}</div>
+                    <div class="text-xs font-medium ${app.connected ? 'text-white' : 'text-slate-400'}">${app.name}</div>
+                    ${app.special ? '<div class="text-xs text-green-400 mt-1">Helix Sync</div>' : ''}
+                </div>
+            `).join('');
+        }
+
+        // Render recent enhancements
+        function renderRecentEnhancements() {
+            const container = document.getElementById('recent-enhancements');
+            container.innerHTML = recentEnhancements.map(item => `
+                <div class="flex items-center justify-between p-3 bg-slate-800/30 rounded-lg">
+                    <div class="flex items-center space-x-3">
+                        <span class="text-xl">${item.icon}</span>
+                        <div>
+                            <div class="text-sm font-medium">${item.prompt}</div>
+                            <div class="text-xs text-slate-500">${item.app} • ${item.time}</div>
+                        </div>
+                    </div>
+                    <span class="text-xs text-mnemosyne-400">${item.boost}</span>
+                </div>
+            `).join('');
+        }
+
+        // Set prompt from button
+        function setPrompt(text) {
+            document.getElementById('user-prompt').value = text;
+        }
+
+        // Process prompt
+        function processPrompt() {
+            const prompt = document.getElementById('user-prompt').value.trim();
+            if (!prompt) return;
+
+            const btn = document.getElementById('process-btn');
+            btn.innerHTML = '<span class="animate-spin">⚙️</span> <span>Processing...</span>';
+            btn.disabled = true;
+
+            // Find matching response type
+            let responseType = 'summarize'; // default
+            const promptLower = prompt.toLowerCase();
+            if (promptLower.includes('pitch') || promptLower.includes('investor')) {
+                responseType = 'pitch deck';
+            } else if (promptLower.includes('presentation') || promptLower.includes('slides') || promptLower.includes('deck')) {
+                responseType = 'presentation';
+            } else if (promptLower.includes('email') || promptLower.includes('meeting') || promptLower.includes('schedule')) {
+                responseType = 'email';
+            }
+
+            const response = demoResponses[responseType];
+
+            // Simulate processing delay
+            setTimeout(() => {
+                document.getElementById('context-preview').innerHTML = response.context;
+                document.getElementById('result-without').innerHTML = response.without;
+                document.getElementById('result-with').innerHTML = response.with;
+
+                document.getElementById('results-area').classList.remove('hidden');
+                document.getElementById('results-area').classList.add('slide-up');
+
+                btn.innerHTML = '<span>🧠</span> <span>Enhance with Mnemosyne</span>';
+                btn.disabled = false;
+
+                // Scroll to results
+                document.getElementById('results-area').scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }, 1500);
+        }
+
+        // Manual Input Data
+        const manualCategories = [
+            { id: 'anime', name: 'Anime', icon: '🎌', count: 12 },
+            { id: 'tv', name: 'TV Series', icon: '📺', count: 8 },
+            { id: 'movie', name: 'Movies', icon: '🎬', count: 5 },
+            { id: 'book', name: 'Books', icon: '📖', count: 3 },
+            { id: 'music', name: 'Music', icon: '🎵', count: 0 },
+            { id: 'game', name: 'Games', icon: '🎮', count: 2 },
+            { id: 'hobby', name: 'Hobbies', icon: '⚽', count: 4 },
+            { id: 'food', name: 'Food', icon: '🍜', count: 0 },
+        ];
+
+        const manualEntries = [
+            { category: 'anime', title: 'Attack on Titan', analyzed: true, insights: 'Dark themes, strategic thinking, anti-hero appreciation' },
+            { category: 'anime', title: 'Death Note', analyzed: true, insights: 'Psychological thriller, moral ambiguity, intellect battles' },
+            { category: 'anime', title: 'Steins;Gate', analyzed: true, insights: 'Sci-fi, time travel, scientific curiosity' },
+            { category: 'anime', title: 'Code Geass', analyzed: true, insights: 'Strategic mastermind, political intrigue' },
+            { category: 'tv', title: 'Breaking Bad', analyzed: true, insights: 'Character transformation, moral complexity' },
+            { category: 'tv', title: 'The Wire', analyzed: true, insights: 'Systems thinking, institutional critique' },
+            { category: 'tv', title: 'Silicon Valley', analyzed: true, insights: 'Startup culture, tech satire' },
+            { category: 'movie', title: 'Inception', analyzed: true, insights: 'Complex narratives, layered storytelling' },
+            { category: 'movie', title: 'The Social Network', analyzed: true, insights: 'Tech entrepreneurship, ambition' },
+            { category: 'game', title: 'Civilization VI', analyzed: true, insights: 'Strategy, long-term planning, world building' },
+            { category: 'hobby', title: 'Chess', analyzed: true, insights: 'Analytical thinking, pattern recognition' },
+            { category: 'hobby', title: 'Investing', analyzed: true, insights: 'Risk management, financial analysis' },
+        ];
+
+        // Toggle manual input form
+        function toggleManualInput() {
+            const form = document.getElementById('manual-input-form');
+            const icon = document.getElementById('toggle-icon');
+            form.classList.toggle('hidden');
+            icon.textContent = form.classList.contains('hidden') ? '+' : '−';
+        }
+
+        // Add manual entry (demo)
+        function addManualEntry() {
+            const category = document.getElementById('new-entry-category').value;
+            const value = document.getElementById('new-entry-value').value.trim();
+            if (!value) return;
+
+            // Demo: add to local array and re-render
+            manualEntries.unshift({
+                category: category,
+                title: value,
+                analyzed: false,
+                insights: 'Analyzing...'
+            });
+
+            // Update category count
+            const cat = manualCategories.find(c => c.id === category);
+            if (cat) cat.count++;
+
+            renderManualCategories();
+            renderManualEntries();
+
+            // Clear input
+            document.getElementById('new-entry-value').value = '';
+
+            // Simulate analysis completion
+            setTimeout(() => {
+                manualEntries[0].analyzed = true;
+                manualEntries[0].insights = 'AI-generated taste profile pending...';
+                renderManualEntries();
+            }, 2000);
+        }
+
+        // Render manual categories
+        function renderManualCategories() {
+            const container = document.getElementById('manual-categories');
+            if (!container) return;
+            container.innerHTML = manualCategories.map(cat => `
+                <div class="flex items-center space-x-2 ${cat.count > 0 ? 'bg-mnemosyne-500/10 border-mnemosyne-500/30' : 'bg-slate-800/30 border-slate-700'} border rounded-lg p-2 cursor-pointer hover:bg-mnemosyne-500/20 transition" onclick="filterByCategory('${cat.id}')">
+                    <span class="text-lg">${cat.icon}</span>
+                    <span class="text-xs font-medium flex-1">${cat.name}</span>
+                    ${cat.count > 0 ? `<span class="text-xs text-mnemosyne-400 bg-mnemosyne-500/20 px-1.5 py-0.5 rounded">${cat.count}</span>` : ''}
+                </div>
+            `).join('');
+        }
+
+        // Render manual entries
+        function renderManualEntries() {
+            const container = document.getElementById('manual-entries');
+            if (!container) return;
+
+            // Show only first 5 entries
+            const displayEntries = manualEntries.slice(0, 5);
+            const remaining = manualEntries.length - 5;
+
+            container.innerHTML = `
+                <div class="text-xs text-slate-500 uppercase tracking-wider mb-2">Recent Entries (${manualEntries.length} total)</div>
+                ${displayEntries.map(entry => {
+                    const cat = manualCategories.find(c => c.id === entry.category);
+                    return `
+                        <div class="flex items-start space-x-3 p-3 bg-slate-800/30 rounded-lg ${!entry.analyzed ? 'animate-pulse' : ''}">
+                            <span class="text-lg">${cat ? cat.icon : '📝'}</span>
+                            <div class="flex-1 min-w-0">
+                                <div class="text-sm font-medium">${entry.title}</div>
+                                <div class="text-xs text-slate-500 truncate">${entry.insights}</div>
+                            </div>
+                            ${entry.analyzed ? '<span class="text-green-400 text-xs flex-shrink-0">✓ Analyzed</span>' : '<span class="text-amber-400 text-xs flex-shrink-0">Processing...</span>'}
+                        </div>
+                    `;
+                }).join('')}
+                ${remaining > 0 ? `<button class="text-xs text-mnemosyne-400 hover:text-mnemosyne-300 w-full text-center py-2">View all ${manualEntries.length} entries →</button>` : ''}
+            `;
+        }
+
+        // Filter by category (demo - just shows alert)
+        function filterByCategory(categoryId) {
+            const cat = manualCategories.find(c => c.id === categoryId);
+            const entries = manualEntries.filter(e => e.category === categoryId);
+            if (entries.length > 0) {
+                console.log(`${cat.name}: ${entries.map(e => e.title).join(', ')}`);
+            }
+        }
+
+        // Persona Building Sources Data
+        const personaSources = {
+            active: [
+                { id: 'dayflow', name: 'DayFlow', icon: '📊', desc: 'App usage & focus time' },
+                { id: 'medium', name: 'Medium', icon: '✍️', desc: '209 articles analyzed' },
+                { id: 'linkedin', name: 'LinkedIn', icon: '💼', desc: 'Career & skills' },
+                { id: 'obsidian', name: 'Obsidian', icon: '🗃️', desc: 'PKM knowledge base' },
+                { id: 'mbti', name: 'MBTI Profile', icon: '🎯', desc: 'INTJ personality' },
+                { id: 'github', name: 'GitHub', icon: '💻', desc: 'Code patterns' },
+                { id: 'calendar', name: 'Calendar', icon: '📅', desc: 'Meeting patterns' },
+                { id: 'browser', name: 'Browser', icon: '🌐', desc: 'Browsing behavior' },
+            ],
+            available: [
+                { id: 'gmail', name: 'Gmail', icon: '📧', desc: 'Communication style' },
+                { id: 'slack', name: 'Slack', icon: '💬', desc: 'Team collaboration' },
+                { id: 'twitter', name: 'Twitter/X', icon: '🐦', desc: 'Social interests' },
+                { id: 'spotify', name: 'Spotify', icon: '🎵', desc: 'Music preferences' },
+                { id: 'youtube', name: 'YouTube', icon: '▶️', desc: 'Watch history' },
+                { id: 'kindle', name: 'Kindle', icon: '📚', desc: 'Reading highlights' },
+            ],
+            coming: [
+                { id: 'health', name: 'Apple Health', icon: '❤️', desc: 'Sleep & activity' },
+                { id: 'photos', name: 'Photos', icon: '📸', desc: 'Visual interests' },
+                { id: 'voice', name: 'Voice Analysis', icon: '🎙️', desc: 'Speaking patterns' },
+                { id: 'location', name: 'Location', icon: '📍', desc: 'Places & routines' },
+                { id: 'finance', name: 'Finance', icon: '💰', desc: 'Spending patterns' },
+                { id: 'notion', name: 'Notion', icon: '📝', desc: 'Notes & docs' },
+            ]
+        };
+
+        // Render persona sources
+        function renderPersonaSources() {
+            // Active sources
+            const activeContainer = document.getElementById('active-sources');
+            if (activeContainer) {
+                activeContainer.innerHTML = personaSources.active.map(src => `
+                    <div class="flex items-center space-x-2 bg-green-500/10 border border-green-500/30 rounded-lg p-2 cursor-pointer hover:bg-green-500/20 transition">
+                        <span class="text-lg">${src.icon}</span>
+                        <div class="flex-1 min-w-0">
+                            <div class="text-xs font-medium truncate">${src.name}</div>
+                            <div class="text-xs text-slate-500 truncate">${src.desc}</div>
+                        </div>
+                        <span class="text-green-400 text-xs">✓</span>
+                    </div>
+                `).join('');
+            }
+
+            // Available sources
+            const availableContainer = document.getElementById('available-sources');
+            if (availableContainer) {
+                availableContainer.innerHTML = personaSources.available.map(src => `
+                    <div class="flex items-center space-x-2 bg-slate-800/50 border border-slate-600 rounded-lg p-2 cursor-pointer hover:border-mnemosyne-500 hover:bg-mnemosyne-500/10 transition group">
+                        <span class="text-lg opacity-60 group-hover:opacity-100">${src.icon}</span>
+                        <div class="flex-1 min-w-0">
+                            <div class="text-xs font-medium truncate text-slate-400 group-hover:text-white">${src.name}</div>
+                            <div class="text-xs text-slate-600 truncate">${src.desc}</div>
+                        </div>
+                        <span class="text-mnemosyne-400 text-xs opacity-0 group-hover:opacity-100">+</span>
+                    </div>
+                `).join('');
+            }
+
+            // Coming soon sources
+            const comingContainer = document.getElementById('coming-sources');
+            if (comingContainer) {
+                comingContainer.innerHTML = personaSources.coming.map(src => `
+                    <div class="flex items-center space-x-2 bg-slate-800/30 border border-slate-700 rounded-lg p-2 opacity-50">
+                        <span class="text-lg">${src.icon}</span>
+                        <div class="flex-1 min-w-0">
+                            <div class="text-xs font-medium truncate text-slate-500">${src.name}</div>
+                            <div class="text-xs text-slate-600 truncate">${src.desc}</div>
+                        </div>
+                        <span class="text-xs text-slate-600">Soon</span>
+                    </div>
+                `).join('');
+            }
+        }
+
+        // Story Flow Functions
+        let currentStep = 1;
+        let currentStoryCategory = 'anime';
+
+        function showView(view) {
+            const storySection = document.getElementById('story-section');
+            const dashboardSection = document.getElementById('dashboard-section');
+            const btnStory = document.getElementById('btn-story');
+            const btnDashboard = document.getElementById('btn-dashboard');
+
+            if (view === 'story') {
+                storySection.classList.remove('hidden');
+                dashboardSection.classList.add('hidden');
+                btnStory.classList.add('bg-mnemosyne-600', 'text-white');
+                btnStory.classList.remove('text-slate-400');
+                btnDashboard.classList.remove('bg-mnemosyne-600', 'text-white');
+                btnDashboard.classList.add('text-slate-400');
+            } else {
+                storySection.classList.add('hidden');
+                dashboardSection.classList.remove('hidden');
+                btnDashboard.classList.add('bg-mnemosyne-600', 'text-white');
+                btnDashboard.classList.remove('text-slate-400');
+                btnStory.classList.remove('bg-mnemosyne-600', 'text-white');
+                btnStory.classList.add('text-slate-400');
+            }
+        }
+
+        function goToStep(step) {
+            currentStep = step;
+
+            // Hide all steps
+            document.querySelectorAll('.step-content').forEach(el => el.classList.add('hidden'));
+
+            // Show current step
+            document.getElementById(`step-${step}`).classList.remove('hidden');
+
+            // Update progress bar
+            document.getElementById('story-progress-bar').style.width = `${step * 25}%`;
+            document.getElementById('story-progress-text').textContent = `Step ${step} of 4`;
+
+            // Update step indicators
+            document.querySelectorAll('.step-indicator').forEach(indicator => {
+                const indicatorStep = parseInt(indicator.dataset.step);
+                const circle = indicator.querySelector('div');
+                if (indicatorStep <= step) {
+                    circle.classList.remove('bg-slate-700');
+                    circle.classList.add('bg-mnemosyne-600');
+                } else {
+                    circle.classList.add('bg-slate-700');
+                    circle.classList.remove('bg-mnemosyne-600');
+                }
+            });
+        }
+
+        function toggleSource(el) {
+            if (el.classList.contains('selected')) {
+                el.classList.remove('selected', 'bg-green-500/10', 'border-green-500/50');
+                el.classList.add('bg-slate-800/50', 'border-slate-600');
+                el.querySelector('span:last-child').textContent = 'Click to connect';
+                el.querySelector('span:last-child').classList.remove('text-green-400');
+                el.querySelector('span:last-child').classList.add('text-slate-500');
+            } else {
+                el.classList.add('selected', 'bg-green-500/10', 'border-green-500/50');
+                el.classList.remove('bg-slate-800/50', 'border-slate-600');
+                el.querySelector('span:last-child').textContent = '✓ Connected';
+                el.querySelector('span:last-child').classList.add('text-green-400');
+                el.querySelector('span:last-child').classList.remove('text-slate-500');
+            }
+        }
+
+        function selectStoryCategory(category) {
+            currentStoryCategory = category;
+            const placeholders = {
+                'anime': 'Type an anime title... (e.g., Attack on Titan)',
+                'tv': 'Type a TV series... (e.g., Breaking Bad)',
+                'movie': 'Type a movie title... (e.g., Inception)',
+                'book': 'Type a book title... (e.g., Zero to One)',
+                'hobby': 'Type a hobby... (e.g., Chess, Investing)'
+            };
+            document.getElementById('story-input').placeholder = placeholders[category] || 'Type something...';
+
+            // Update active button
+            document.querySelectorAll('.story-cat-btn').forEach(btn => {
+                btn.classList.remove('active', 'bg-mnemosyne-600');
+                btn.classList.add('bg-slate-700');
+            });
+            event.target.classList.add('active', 'bg-mnemosyne-600');
+            event.target.classList.remove('bg-slate-700');
+        }
+
+        function addStoryItem() {
+            const input = document.getElementById('story-input');
+            const value = input.value.trim();
+            if (!value) return;
+
+            const icons = {
+                'anime': '🎌',
+                'tv': '📺',
+                'movie': '🎬',
+                'book': '📖',
+                'hobby': '⚽'
+            };
+
+            const container = document.getElementById('story-items');
+            const newItem = document.createElement('div');
+            newItem.className = 'flex items-center justify-between bg-slate-800/30 rounded-lg p-3 animate-pulse';
+            newItem.innerHTML = `
+                <div class="flex items-center space-x-3">
+                    <span>${icons[currentStoryCategory]}</span>
+                    <div>
+                        <div class="text-sm font-medium">${value}</div>
+                        <div class="text-xs text-slate-500">Analyzing...</div>
+                    </div>
+                </div>
+                <span class="text-amber-400 text-xs">Processing...</span>
+            `;
+            container.insertBefore(newItem, container.firstChild);
+            input.value = '';
+
+            // Simulate analysis
+            setTimeout(() => {
+                newItem.classList.remove('animate-pulse');
+                newItem.querySelector('.text-slate-500').textContent = '→ AI-generated insights based on themes';
+                newItem.querySelector('.text-slate-500').classList.remove('text-slate-500');
+                newItem.querySelector('.text-slate-500').classList.add('text-mnemosyne-400');
+                newItem.querySelector('.text-amber-400').textContent = '✓ Analyzed';
+                newItem.querySelector('.text-amber-400').classList.remove('text-amber-400');
+                newItem.querySelector('.text-amber-400').classList.add('text-green-400');
+            }, 1500);
+        }
+
+        // ── Mnemosyne API Integration ──────────────────────────
+        const MNEMO_API = window.location.origin + '/api/v1';
+
+        async function startBehavioralSeed() {
+            const btn = document.getElementById('seed-btn');
+            if (btn) {
+                btn.textContent = 'Capturing...';
+                btn.disabled = true;
+            }
+            try {
+                const r = await fetch(MNEMO_API + '/onboarding/seed', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({count: 6, interval: 10})
+                });
+                const data = await r.json();
+                console.log('Behavioral seed:', data);
+                if (btn) btn.textContent = '✓ Capturing in background (60s)';
+            } catch (e) {
+                console.error('Seed capture failed:', e);
+                if (btn) btn.textContent = 'Capture failed (engine not running?)';
+            }
+        }
+
+        async function generatePersona() {
+            try {
+                const r = await fetch(MNEMO_API + '/onboarding/persona', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        interview: {},
+                        mbti: 'INTJ',
+                        interests: manualEntries.map(e => e.title),
+                        sources: personaSources.active.map(s => s.id)
+                    })
+                });
+                const persona = await r.json();
+                console.log('Generated persona:', persona);
+                return persona;
+            } catch (e) {
+                console.error('Persona generation failed:', e);
+                return null;
+            }
+        }
+
+        async function checkEngineHealth() {
+            try {
+                const r = await fetch(MNEMO_API + '/health');
+                const h = await r.json();
+                console.log('Mnemosyne engine:', h);
+                return h;
+            } catch (e) {
+                console.log('Mnemosyne engine not running (demo mode)');
+                return null;
+            }
+        }
+
+        // Initialize on load
+        init();
+        renderPersonaSources();
+        renderManualCategories();
+        renderManualEntries();
+        checkEngineHealth();
+    </script>
+
+    <!-- Footer -->
+    <footer class="border-t border-slate-800 py-8 px-6">
+        <div class="max-w-7xl mx-auto flex items-center justify-between">
+            <div class="flex items-center space-x-2">
+                <span class="text-2xl">🧠</span>
+                <span class="font-bold text-mnemosyne-400">Mnemosyne</span>
+                <span class="text-slate-500 text-sm">by IrisGo</span>
+            </div>
+            <div class="text-sm text-slate-500">
+                Your AI, Personalized. Privacy First.
+            </div>
+        </div>
+    </footer>
+</body>
+</html>

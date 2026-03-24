@@ -6,7 +6,10 @@ Serves:
   - GET /api/v1/profile?date=
   - GET /api/v1/summary?date=
   - GET /api/v1/health
+  - POST /api/v1/onboarding/seed   (60s behavioral seed capture)
+  - POST /api/v1/onboarding/persona (generate ground zero persona)
   - GET / → dashboard HTML
+  - GET /onboarding → onboarding HTML
 
 Run: python api.py
 Opens: http://localhost:5700
@@ -14,6 +17,8 @@ Opens: http://localhost:5700
 
 import json
 import os
+import threading
+import time
 from datetime import datetime
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from pathlib import Path
@@ -24,6 +29,7 @@ import storage
 HOST = "127.0.0.1"
 PORT = int(os.environ.get("MNEMOSYNE_PORT", "5700"))
 DASHBOARD_PATH = Path(__file__).parent / "dashboard.html"
+ONBOARDING_PATH = Path(__file__).parent / "onboarding.html"
 
 
 def _json_response(handler, data, status=200):
@@ -91,6 +97,23 @@ class Handler(BaseHTTPRequestHandler):
     def log_message(self, format, *args):
         pass  # silence request logs
 
+    def do_POST(self):
+        parsed = urlparse(self.path)
+        path = parsed.path
+        content_length = int(self.headers.get('Content-Length', 0))
+        body = self.rfile.read(content_length) if content_length else b'{}'
+        try:
+            data = json.loads(body)
+        except json.JSONDecodeError:
+            data = {}
+
+        if path == "/api/v1/onboarding/seed":
+            self._api_onboarding_seed(data)
+        elif path == "/api/v1/onboarding/persona":
+            self._api_onboarding_persona(data)
+        else:
+            self.send_error(404)
+
     def do_GET(self):
         parsed = urlparse(self.path)
         path = parsed.path
@@ -98,6 +121,8 @@ class Handler(BaseHTTPRequestHandler):
 
         if path == "/" or path == "/dashboard":
             self._serve_dashboard()
+        elif path == "/onboarding":
+            self._serve_file(ONBOARDING_PATH, "text/html")
         elif path == "/api/v1/context/now":
             self._api_context_now()
         elif path == "/api/v1/cards":
@@ -117,16 +142,19 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Access-Control-Allow-Methods", "GET, OPTIONS")
         self.end_headers()
 
-    def _serve_dashboard(self):
-        if not DASHBOARD_PATH.exists():
-            self.send_error(404, "dashboard.html not found")
+    def _serve_file(self, filepath, content_type):
+        if not filepath.exists():
+            self.send_error(404, f"{filepath.name} not found")
             return
-        body = DASHBOARD_PATH.read_bytes()
+        body = filepath.read_bytes()
         self.send_response(200)
-        self.send_header("Content-Type", "text/html; charset=utf-8")
+        self.send_header("Content-Type", f"{content_type}; charset=utf-8")
         self.send_header("Content-Length", len(body))
         self.end_headers()
         self.wfile.write(body)
+
+    def _serve_dashboard(self):
+        self._serve_file(DASHBOARD_PATH, "text/html")
 
     def _api_context_now(self):
         cards = storage.get_cards(limit=5)
@@ -168,6 +196,84 @@ class Handler(BaseHTTPRequestHandler):
             "highlights": [c.get("title", "") for c in cards[:5]],
             "categories": cats,
         })
+
+    def _api_onboarding_seed(self, data):
+        """Capture N screenshots as behavioral seed for onboarding."""
+        count = data.get("count", 6)
+        interval = data.get("interval", 10)
+
+        def _capture_in_bg():
+            import capture
+            results = []
+            for i in range(count):
+                if i > 0:
+                    time.sleep(interval)
+                try:
+                    path = capture.capture_screenshot()
+                    ts = int(datetime.now().timestamp())
+                    sid = storage.save_screenshot(
+                        captured_at=ts,
+                        file_path=str(path),
+                        file_size=path.stat().st_size
+                    )
+                    results.append({"id": sid, "file": path.name})
+                except Exception as e:
+                    results.append({"error": str(e)})
+
+        # Run capture in background thread
+        thread = threading.Thread(target=_capture_in_bg, daemon=True)
+        thread.start()
+
+        _json_response(self, {
+            "status": "capturing",
+            "count": count,
+            "interval": interval,
+            "message": f"Capturing {count} screenshots over {count * interval}s"
+        })
+
+    def _api_onboarding_persona(self, data):
+        """Generate ground zero persona from available data."""
+        # Gather all cards
+        cards = storage.get_cards(limit=200)
+
+        # User-provided data from onboarding form
+        interview = data.get("interview", {})
+        mbti = data.get("mbti", "")
+        interests = data.get("interests", [])
+        sources = data.get("sources", [])
+
+        # Build persona from cards + user input
+        profile = _build_profile(cards, datetime.now().strftime("%Y-%m-%d"))
+
+        persona = {
+            "version": "0.1.0",
+            "created_at": datetime.now().isoformat(),
+            "confidence": min(0.3 + len(cards) * 0.05 + (0.1 if interview else 0) + (0.05 if mbti else 0) + len(interests) * 0.02, 0.95),
+            "days_observed": len(set(c.get("start_time", "")[:10] for c in cards)),
+            "identity": {
+                "role": interview.get("role", ""),
+                "source": "interview"
+            },
+            "work_style": {
+                "top_categories": profile.get("categories", []),
+                "apps_primary": profile.get("apps_used", [])[:5],
+                "source": "context_engine + interview"
+            },
+            "personality": {
+                "mbti": mbti,
+                "source": "user_input"
+            },
+            "interests": {
+                "current": interests,
+                "from_context": [c.get("subcategory", "") for c in cards[:5] if c.get("subcategory")],
+                "source": "user_input + context_engine"
+            },
+            "corrections": [],
+            "context_cards_count": len(cards),
+            "sources_connected": sources
+        }
+
+        _json_response(self, persona)
 
     def _api_health(self):
         conn = storage.get_db()
