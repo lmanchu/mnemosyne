@@ -58,9 +58,11 @@ python api.py
 | `pipeline.py` | 100 | End-to-end: capture → batch → analyze → store | Produces real ActivityCards |
 | `daemon.py` | 150 | Background daemon: continuous capture + periodic analysis | Running (1800+ screenshots) |
 | `mcp_server.py` | 200 | MCP server: 5 tools + 1 resource + background capture | Working |
-| `api.py` | 380 | REST API + onboarding + engine stats (localhost:5700) | Working |
+| `persona.py` | 400 | Persona evolution: daily synthesis + markdown export/import | Working |
+| `api.py` | 430 | REST API + onboarding + persona + engine stats (localhost:5700) | Working |
 | `dashboard.html` | 220 | Engine Console: pipeline status, metrics, batch history (cyan) | Working |
-| `onboarding.html` | 320 | 4-step onboarding wired to real API (IrisGo brand) | Working |
+| `onboarding.html` | 380 | 4-step onboarding: interview + social profiles + interests | Working |
+| `persona-editor.html` | 180 | Markdown persona editor with Edit/Preview + Ctrl+S | Working |
 | `INTERFACE.md` | 400 | Interface spec + Philosophy (Memory vs Context Engine) | Spec complete |
 | `ONBOARDING.md` | 220 | Persona building spec: ground zero in 5 minutes | Spec complete |
 
@@ -88,10 +90,13 @@ mnemosyne/
 ├── pipeline.py          # Orchestrator: capture → batch → analyze → store
 ├── daemon.py            # Background daemon: continuous capture + analysis
 ├── mcp_server.py        # MCP server: 5 tools for IrisGo integration
-├── api.py               # REST API + onboarding endpoints (localhost:5700)
+├── persona.py           # Persona evolution: synthesize + markdown I/O
+├── api.py               # REST API + onboarding + persona (localhost:5700)
 ├── dashboard.html       # Engine Console (cyan accent, system diagnostics)
-├── onboarding.html      # 4-step onboarding flow (IrisGo brand)
+├── onboarding.html      # 4-step onboarding (interview + social + interests)
+├── persona-editor.html  # Markdown persona editor (Edit/Preview)
 ├── test_vlm.py          # VLM validation script
+├── start.bat / stop.bat # Windows auto-start on login
 ├── INTERFACE.md         # Interface spec + Philosophy (Memory vs Context)
 ├── ONBOARDING.md        # Persona building spec
 └── docs/                # Design documents (v1.x, historical)
@@ -116,10 +121,14 @@ mnemosyne/
 - [x] Phase 5: Engine Console + REST API (`localhost:5700`)
 - [x] Phase 5b: Onboarding flow (4-step, wired to real API)
 - [x] Phase 5c: 3-Part UI overhaul (onboarding real data, engine console, new endpoints)
-- [x] Daemon: Background capture + periodic analysis (1800+ screenshots accumulated)
+- [x] Phase 8: Persona evolution (daily synthesis from ActivityCards)
+- [x] Persona editor: Editable markdown at `/persona` (user edits override AI)
+- [x] Social profiles + interests in onboarding (LinkedIn, Twitter, IG, GitHub, books, anime, etc.)
+- [x] Daemon: Background capture + periodic analysis (2000+ screenshots accumulated)
+- [x] Windows auto-start: `start.bat` in Startup folder
+- [ ] Phase 3: Multi-provider (Claude, OpenAI, Ollama)
 - [ ] Phase 6: IrisGo app integration
 - [ ] Phase 7: ActivityWatch bridge for metadata enrichment
-- [ ] Phase 8: Persona evolution (daily synthesis → weekly merge → stable persona)
 
 ## API
 
@@ -127,11 +136,15 @@ Running on `http://localhost:5700`:
 
 ```
 GET /                       # Dashboard UI
-GET /api/v1/context/now     # Current activity + system prompt fragment
-GET /api/v1/cards           # ActivityCards by date/category
-GET /api/v1/profile         # Aggregated context profile
-GET /api/v1/summary         # Day summary
-GET /api/v1/health          # System status
+GET /api/v1/context/now      # Current activity + system prompt fragment
+GET /api/v1/cards            # ActivityCards by date/category
+GET /api/v1/profile          # Aggregated context profile
+GET /api/v1/summary          # Day summary
+GET /api/v1/health           # System status
+GET /api/v1/engine/stats     # Comprehensive engine metrics
+GET /api/v1/persona?format=  # Current persona (json or markdown)
+POST /api/v1/persona         # Save edited persona markdown
+POST /api/v1/onboarding/*    # Interview, preferences, seed, persona generation
 ```
 
 ## MCP Integration
