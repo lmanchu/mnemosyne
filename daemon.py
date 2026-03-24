@@ -17,6 +17,7 @@ from pathlib import Path
 import capture
 import provider_gemini as gemini
 import storage
+import aw_bridge
 
 CAPTURE_INTERVAL = int(os.environ.get("MNEMOSYNE_CAPTURE_INTERVAL", "10"))
 BATCH_INTERVAL = int(os.environ.get("MNEMOSYNE_BATCH_INTERVAL", str(15 * 60)))  # 15 min
@@ -39,10 +40,15 @@ def do_capture():
     try:
         path = capture.capture_screenshot()
         ts = int(datetime.now().timestamp())
+        ctx = aw_bridge.get_current_context()
         storage.save_screenshot(
             captured_at=ts,
             file_path=str(path),
-            file_size=path.stat().st_size
+            file_size=path.stat().st_size,
+            active_app=ctx.get("app", ""),
+            window_title=ctx.get("title", ""),
+            url=ctx.get("url", ""),
+            idle_seconds=ctx.get("afk_duration", 0) if ctx.get("afk") else 0
         )
         return True
     except Exception as e:
@@ -104,6 +110,8 @@ def main():
     # Stats
     capture_count = 0
     last_batch_time = time.time()
+    last_persona_time = time.time()
+    PERSONA_INTERVAL = 2 * 60 * 60  # every 2 hours
 
     conn = storage.get_db()
     total_cards = conn.execute("SELECT COUNT(*) FROM cards").fetchone()[0]
@@ -130,6 +138,11 @@ def main():
             do_analyze()
             last_batch_time = time.time()
 
+        # Persona synthesis on interval
+        if analyze_enabled and (time.time() - last_persona_time) >= PERSONA_INTERVAL:
+            do_persona_synthesis()
+            last_persona_time = time.time()
+
         # Sleep (in small increments so Ctrl+C is responsive)
         for _ in range(CAPTURE_INTERVAL * 10):
             if not running:
@@ -140,8 +153,27 @@ def main():
     if analyze_enabled:
         print(f"[{now()}] Running final analysis...")
         do_analyze()
+        # Synthesize daily persona
+        do_persona_synthesis()
 
     print(f"[{now()}] Done. {capture_count} captures this session.")
+
+
+def do_persona_synthesis():
+    """Synthesize daily persona from today's cards."""
+    try:
+        import persona as persona_mod
+        today = datetime.now().strftime("%Y-%m-%d")
+        cards = storage.get_cards(date=today, limit=200)
+        if len(cards) >= 2:
+            print(f"[{now()}] Synthesizing persona from {len(cards)} cards...")
+            result = persona_mod.synthesize_daily(today)
+            if result:
+                print(f"[{now()}] Persona updated: {result.get('summary', '')[:80]}")
+        else:
+            print(f"[{now()}] Not enough cards for persona synthesis ({len(cards)})")
+    except Exception as e:
+        print(f"[{now()}] Persona synthesis failed: {e}")
 
 
 if __name__ == "__main__":

@@ -366,6 +366,19 @@ def from_markdown(md: str, existing_data: dict = None) -> dict:
     """Parse user-edited markdown back into persona data. Preserves fields user didn't edit."""
     data = existing_data.copy() if existing_data else {}
 
+    # Extract identity
+    for line in md.split("\n"):
+        line = line.strip()
+        if line.startswith("- **Role**:"):
+            val = line.split(":", 1)[1].strip()
+            if val and not val.startswith("_"):
+                data.setdefault("identity", {})["likely_role"] = val
+                data.setdefault("identity", {})["role"] = val
+        elif line.startswith("- **Seniority**:"):
+            val = line.split(":", 1)[1].strip()
+            if val and not val.startswith("_"):
+                data.setdefault("identity", {})["seniority"] = val
+
     # Extract social profiles from markdown
     social = {}
     for line in md.split("\n"):

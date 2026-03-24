@@ -28,6 +28,7 @@ if getattr(sys, 'frozen', False):
 import capture
 import storage
 import provider_gemini as gemini
+import aw_bridge
 
 # ── Config ────────────────────────────────────────
 
@@ -57,14 +58,19 @@ def daemon_loop():
     analyze_enabled = bool(os.environ.get("GEMINI_API_KEY"))
 
     while running:
-        # Capture
+        # Capture + AW metadata
         try:
             path = capture.capture_screenshot()
             ts = int(datetime.now().timestamp())
+            ctx = aw_bridge.get_current_context()
             storage.save_screenshot(
                 captured_at=ts,
                 file_path=str(path),
-                file_size=path.stat().st_size
+                file_size=path.stat().st_size,
+                active_app=ctx.get("app", ""),
+                window_title=ctx.get("title", ""),
+                url=ctx.get("url", ""),
+                idle_seconds=ctx.get("afk_duration", 0) if ctx.get("afk") else 0
             )
             capture_count += 1
             if capture_count % 6 == 0:

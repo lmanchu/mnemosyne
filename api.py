@@ -25,6 +25,7 @@ from pathlib import Path
 from urllib.parse import urlparse, parse_qs
 
 import storage
+import aw_bridge
 
 HOST = "127.0.0.1"
 PORT = int(os.environ.get("MNEMOSYNE_PORT", "5700"))
@@ -227,10 +228,14 @@ class Handler(BaseHTTPRequestHandler):
                 try:
                     path = capture.capture_screenshot()
                     ts = int(datetime.now().timestamp())
+                    ctx = aw_bridge.get_current_context()
                     sid = storage.save_screenshot(
                         captured_at=ts,
                         file_path=str(path),
-                        file_size=path.stat().st_size
+                        file_size=path.stat().st_size,
+                        active_app=ctx.get("app", ""),
+                        window_title=ctx.get("title", ""),
+                        url=ctx.get("url", ""),
                     )
                     results.append({"id": sid, "file": path.name})
                 except Exception as e:
@@ -362,6 +367,12 @@ class Handler(BaseHTTPRequestHandler):
                 "capture_interval": cap_interval,
                 "batch_interval": batch_interval,
                 "last_capture": datetime.fromtimestamp(last_cap_ts).isoformat() if last_cap_ts else None,
+            },
+            "activitywatch": {
+                "running": aw_bridge.is_running(),
+            },
+            "ollama": {
+                "available": False,  # checked on demand to avoid timeout
             }
         })
 
