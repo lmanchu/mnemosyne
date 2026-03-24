@@ -4,7 +4,11 @@ REM Place shortcut in shell:startup for auto-start on login
 
 set PYTHON=%USERPROFILE%\AppData\Local\Programs\Python\Python312\python.exe
 set PROJECT=%~dp0
-set GEMINI_API_KEY=AIzaSyCmNaW3sEVT8cCEjy3GijQjqRxyWIoJTdM
+REM Set your Gemini API key as a system environment variable, or uncomment below:
+REM set GEMINI_API_KEY=your-key-here
+if "%GEMINI_API_KEY%"=="" (
+    echo WARNING: GEMINI_API_KEY not set. Daemon will capture only, no analysis.
+)
 set PYTHONUNBUFFERED=1
 
 REM Activate venv
