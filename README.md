@@ -53,13 +53,16 @@ python api.py
 |------|------:|-------------|--------|
 | `capture.py` | 50 | Screenshot → 1080p JPEG (250ms, ~350KB) | Validated on Windows 11 AIPC |
 | `test_vlm.py` | 80 | Single screenshot → Gemini Flash → activity description | Confidence 1.0 |
-| `storage.py` | 160 | SQLite: screenshots, batches, cards tables | Working |
+| `storage.py` | 210 | SQLite: 5 tables (screenshots, batches, cards, onboarding, persona) | Working |
 | `provider_gemini.py` | 150 | Gemini 2.5 Flash: transcribe + generate card (2 API calls) | Working |
 | `pipeline.py` | 100 | End-to-end: capture → batch → analyze → store | Produces real ActivityCards |
+| `daemon.py` | 150 | Background daemon: continuous capture + periodic analysis | Running (1800+ screenshots) |
 | `mcp_server.py` | 200 | MCP server: 5 tools + 1 resource + background capture | Working |
-| `api.py` | 150 | REST API server on localhost:5700 | Working |
-| `dashboard.html` | 250 | Timeline + profile dashboard (Tailwind, IrisGo brand) | Working |
-| `INTERFACE.md` | 400 | Full interface spec: inputs, outputs, API, philosophy | Spec complete |
+| `api.py` | 380 | REST API + onboarding + engine stats (localhost:5700) | Working |
+| `dashboard.html` | 220 | Engine Console: pipeline status, metrics, batch history (cyan) | Working |
+| `onboarding.html` | 320 | 4-step onboarding wired to real API (IrisGo brand) | Working |
+| `INTERFACE.md` | 400 | Interface spec + Philosophy (Memory vs Context Engine) | Spec complete |
+| `ONBOARDING.md` | 220 | Persona building spec: ground zero in 5 minutes | Spec complete |
 
 ### Example ActivityCard (real output)
 
@@ -80,14 +83,17 @@ python api.py
 ```
 mnemosyne/
 ├── capture.py           # Screen capture (mss library, 250ms/shot)
-├── storage.py           # SQLite: screenshots, batches, cards
+├── storage.py           # SQLite: 5 tables + CRUD
 ├── provider_gemini.py   # Gemini Vision: transcribe + generate card
 ├── pipeline.py          # Orchestrator: capture → batch → analyze → store
+├── daemon.py            # Background daemon: continuous capture + analysis
 ├── mcp_server.py        # MCP server: 5 tools for IrisGo integration
-├── api.py               # REST API + dashboard server (localhost:5700)
-├── dashboard.html       # Timeline + profile UI (single file, Tailwind)
+├── api.py               # REST API + onboarding endpoints (localhost:5700)
+├── dashboard.html       # Engine Console (cyan accent, system diagnostics)
+├── onboarding.html      # 4-step onboarding flow (IrisGo brand)
 ├── test_vlm.py          # VLM validation script
-├── INTERFACE.md         # Interface spec + philosophy (Memory vs Context)
+├── INTERFACE.md         # Interface spec + Philosophy (Memory vs Context)
+├── ONBOARDING.md        # Persona building spec
 └── docs/                # Design documents (v1.x, historical)
 ```
 
@@ -107,9 +113,13 @@ mnemosyne/
 - [x] Phase 2: Full pipeline (capture → batch → ActivityCard → SQLite)
 - [ ] Phase 3: Multi-provider (Claude, OpenAI, Ollama)
 - [x] Phase 4: MCP server (5 tools + IrisGo skill)
-- [x] Phase 5: Dashboard + REST API (`localhost:5700`)
+- [x] Phase 5: Engine Console + REST API (`localhost:5700`)
+- [x] Phase 5b: Onboarding flow (4-step, wired to real API)
+- [x] Phase 5c: 3-Part UI overhaul (onboarding real data, engine console, new endpoints)
+- [x] Daemon: Background capture + periodic analysis (1800+ screenshots accumulated)
 - [ ] Phase 6: IrisGo app integration
 - [ ] Phase 7: ActivityWatch bridge for metadata enrichment
+- [ ] Phase 8: Persona evolution (daily synthesis → weekly merge → stable persona)
 
 ## API
 
