@@ -208,6 +208,228 @@ def show_persona():
     print(f"{'='*60}")
 
 
+def to_markdown(persona_row: dict = None) -> str:
+    """Convert persona data to editable markdown."""
+    if not persona_row:
+        persona_row = storage.get_latest_persona()
+    if not persona_row:
+        return "# My Persona\n\n_No persona generated yet. Run the onboarding or daemon first._\n"
+
+    data = persona_row.get("data", {})
+    if isinstance(data, str):
+        try:
+            data = json.loads(data)
+        except:
+            data = {}
+
+    version = persona_row.get("version", "?")
+    confidence = persona_row.get("confidence", 0)
+    created = persona_row.get("created_at", "?")
+
+    lines = [
+        f"# My Persona",
+        f"",
+        f"> Version {version} | Confidence {confidence:.0%} | Last updated: {created}",
+        f"> Edit freely — your changes override AI-generated content.",
+        f"",
+    ]
+
+    # Summary
+    if data.get("summary"):
+        lines += [f"## Summary", f"", data["summary"], f""]
+
+    # Identity — handle both synthesized (likely_role) and onboarding (role) formats
+    ident = data.get("identity", {})
+    role = ident.get("likely_role", "") or ident.get("role", "") or "_not yet determined_"
+    seniority = ident.get("seniority", "_unknown_")
+    lines += [
+        f"## Identity",
+        f"",
+        f"- **Role**: {role}",
+        f"- **Seniority**: {seniority}",
+        f"",
+    ]
+
+    # Work Style — handle both formats
+    ws = data.get("work_style", {})
+    lines += [f"## Work Style", f""]
+    if ws.get("type"):
+        lines.append(f"- **Type**: {ws['type']}")
+    if ws.get("peak_hours"):
+        lines.append(f"- **Peak hours**: {ws['peak_hours']}")
+    if ws.get("communication"):
+        lines.append(f"- **Communication**: {ws['communication']}")
+    if ws.get("context_switches"):
+        lines.append(f"- **Context switches**: {ws['context_switches']}")
+    # From onboarding format
+    top_cats = ws.get("top_categories", [])
+    if top_cats:
+        lines.append(f"")
+        lines.append(f"**Activity breakdown**:")
+        for tc in top_cats:
+            lines.append(f"- {tc.get('name', '?')}: {tc.get('pct', '?')}%")
+    lines.append("")
+
+    # Tools — handle both formats
+    tools = data.get("tools", {})
+    primary = tools.get("primary", []) or ws.get("apps_primary", [])
+    secondary = tools.get("secondary", [])
+    lines += [f"## Tools", f""]
+    if primary:
+        lines.append(f"**Primary**: {', '.join(primary)}")
+    if secondary:
+        lines.append(f"**Secondary**: {', '.join(secondary)}")
+    if not primary and not secondary:
+        lines.append("_No tools detected yet_")
+    lines.append("")
+
+    # Interests — handle both formats
+    interests = data.get("interests", {})
+    current = interests.get("current", [])
+    inferred = interests.get("inferred", []) or interests.get("from_context", [])
+    lines += [f"## Interests", f""]
+    if current:
+        lines.append(f"**Current**: {', '.join(current)}")
+    if inferred:
+        lines.append(f"**Inferred**: {', '.join(inferred)}")
+    lines.append("")
+
+    # Social profiles (placeholder for user to fill)
+    social = data.get("social_profiles", {})
+    lines += [
+        f"## Social Profiles",
+        f"",
+        f"- **LinkedIn**: {social.get('linkedin', '_paste URL_')}",
+        f"- **Twitter/X**: {social.get('twitter', '_paste @handle_')}",
+        f"- **Instagram**: {social.get('instagram', '_paste @handle_')}",
+        f"- **Facebook**: {social.get('facebook', '_paste URL_')}",
+        f"- **Medium/Blog**: {social.get('blog', '_paste URL_')}",
+        f"- **GitHub**: {social.get('github', '_paste username_')}",
+        f"",
+    ]
+
+    # Entertainment & culture
+    entertainment = data.get("entertainment", {})
+    lines += [
+        f"## Entertainment & Culture",
+        f"",
+        f"_Add your favorites — this helps the AI use references and analogies you'll appreciate._",
+        f"",
+    ]
+    for cat in ["anime", "movies", "tv_shows", "books", "games", "music", "hobbies"]:
+        items = entertainment.get(cat, [])
+        label = cat.replace("_", " ").title()
+        if items:
+            lines.append(f"**{label}**: {', '.join(items)}")
+        else:
+            lines.append(f"**{label}**: _none yet_")
+    lines.append("")
+
+    # Personality
+    personality = data.get("personality", {})
+    patterns = data.get("patterns", {})
+    lines += [
+        f"## Personality",
+        f"",
+        f"- **MBTI**: {personality.get('mbti', '_unknown_')}",
+        f"- **Focus level**: {patterns.get('focus_level', '_unknown_')}",
+        f"- **Distractions**: {patterns.get('distractions', '_unknown_')}",
+        f"- **Work/life**: {patterns.get('work_life', '_unknown_')}",
+        f"",
+    ]
+
+    # Categories
+    cats = data.get("categories", {})
+    dist = cats.get("distribution", {})
+    if dist:
+        lines += [f"## Activity Distribution", f""]
+        for k, v in sorted(dist.items(), key=lambda x: -float(str(x[1]).rstrip('%'))):
+            pct = f"{float(str(v).rstrip('%')) * 100:.1f}%" if isinstance(v, float) and v <= 1 else str(v)
+            lines.append(f"- {k}: {pct}")
+        lines.append("")
+
+    # Custom notes
+    custom = data.get("custom_notes", "")
+    lines += [
+        f"## My Notes",
+        f"",
+        f"_Add anything the AI should know about you that isn't captured above._",
+        f"",
+        custom if custom else "",
+        f"",
+    ]
+
+    return "\n".join(lines)
+
+
+def from_markdown(md: str, existing_data: dict = None) -> dict:
+    """Parse user-edited markdown back into persona data. Preserves fields user didn't edit."""
+    data = existing_data.copy() if existing_data else {}
+
+    # Extract social profiles from markdown
+    social = {}
+    for line in md.split("\n"):
+        line = line.strip()
+        if line.startswith("- **LinkedIn**:"):
+            val = line.split(":", 1)[1].strip()
+            if val and val != "_paste URL_":
+                social["linkedin"] = val
+        elif line.startswith("- **Twitter/X**:"):
+            val = line.split(":", 1)[1].strip()
+            if val and val != "_paste @handle_":
+                social["twitter"] = val
+        elif line.startswith("- **Instagram**:"):
+            val = line.split(":", 1)[1].strip()
+            if val and val != "_paste @handle_":
+                social["instagram"] = val
+        elif line.startswith("- **Facebook**:"):
+            val = line.split(":", 1)[1].strip()
+            if val and val != "_paste URL_":
+                social["facebook"] = val
+        elif line.startswith("- **Medium/Blog**:"):
+            val = line.split(":", 1)[1].strip()
+            if val and val != "_paste URL_":
+                social["blog"] = val
+        elif line.startswith("- **GitHub**:"):
+            val = line.split(":", 1)[1].strip()
+            if val and val != "_paste username_":
+                social["github"] = val
+    if social:
+        data["social_profiles"] = social
+
+    # Extract entertainment
+    entertainment = {}
+    for cat in ["Anime", "Movies", "Tv Shows", "Books", "Games", "Music", "Hobbies"]:
+        for line in md.split("\n"):
+            if line.strip().startswith(f"**{cat}**:"):
+                val = line.split(":", 1)[1].strip()
+                if val and val != "_none yet_":
+                    key = cat.lower().replace(" ", "_")
+                    entertainment[key] = [x.strip() for x in val.split(",")]
+    if entertainment:
+        data["entertainment"] = entertainment
+
+    # Extract MBTI
+    for line in md.split("\n"):
+        if line.strip().startswith("- **MBTI**:"):
+            val = line.split(":", 1)[1].strip()
+            if val and val != "_unknown_":
+                data.setdefault("personality", {})["mbti"] = val
+
+    # Extract custom notes (everything after "## My Notes")
+    if "## My Notes" in md:
+        notes_section = md.split("## My Notes")[1].strip()
+        # Remove the instruction line
+        notes_lines = [l for l in notes_section.split("\n") if not l.strip().startswith("_Add anything")]
+        custom = "\n".join(notes_lines).strip()
+        if custom:
+            data["custom_notes"] = custom
+
+    data["user_edited"] = True
+    data["last_edited"] = datetime.now().isoformat()
+    return data
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Mnemosyne persona evolution")
     parser.add_argument("--date", help="Date to synthesize (YYYY-MM-DD, default: today)")

@@ -30,6 +30,7 @@ HOST = "127.0.0.1"
 PORT = int(os.environ.get("MNEMOSYNE_PORT", "5700"))
 DASHBOARD_PATH = Path(__file__).parent / "dashboard.html"
 ONBOARDING_PATH = Path(__file__).parent / "onboarding.html"
+PERSONA_EDITOR_PATH = Path(__file__).parent / "persona-editor.html"
 
 
 def _json_response(handler, data, status=200):
@@ -115,6 +116,8 @@ class Handler(BaseHTTPRequestHandler):
             self._api_onboarding_interview(data)
         elif path == "/api/v1/onboarding/preferences":
             self._api_onboarding_preferences(data)
+        elif path == "/api/v1/persona":
+            self._api_save_persona(data)
         else:
             self.send_error(404)
 
@@ -141,6 +144,10 @@ class Handler(BaseHTTPRequestHandler):
             self._api_seed_status()
         elif path == "/api/v1/engine/stats":
             self._api_engine_stats()
+        elif path == "/api/v1/persona":
+            self._api_get_persona(params)
+        elif path == "/persona":
+            self._serve_file(PERSONA_EDITOR_PATH, "text/html")
         else:
             self.send_error(404)
 
@@ -357,6 +364,36 @@ class Handler(BaseHTTPRequestHandler):
                 "last_capture": datetime.fromtimestamp(last_cap_ts).isoformat() if last_cap_ts else None,
             }
         })
+
+    def _api_get_persona(self, params):
+        fmt = params.get("format", "json")
+        import persona as persona_mod
+        p = storage.get_latest_persona()
+        if fmt == "markdown":
+            md = persona_mod.to_markdown(p)
+            _json_response(self, {"markdown": md, "version": p.get("version") if p else None})
+        else:
+            _json_response(self, p.get("data", {}) if p else {"status": "no_persona"})
+
+    def _api_save_persona(self, data):
+        import persona as persona_mod
+        md = data.get("markdown", "")
+        existing = storage.get_latest_persona()
+        existing_data = existing.get("data", {}) if existing else {}
+        if isinstance(existing_data, str):
+            try: existing_data = json.loads(existing_data)
+            except: existing_data = {}
+
+        updated = persona_mod.from_markdown(md, existing_data)
+
+        conn = storage.get_db()
+        count = conn.execute("SELECT COUNT(*) FROM persona").fetchone()[0]
+        conn.close()
+        version = f"0.{count + 1}.0"
+
+        confidence = min((existing.get("confidence", 0.5) if existing else 0.5) + 0.1, 0.99)
+        pid = storage.save_persona(version, updated, confidence)
+        _json_response(self, {"status": "saved", "version": version, "id": pid})
 
     def _api_health(self):
         conn = storage.get_db()

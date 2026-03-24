@@ -121,6 +121,45 @@ body { font-family: 'Sora', sans-serif; }
       </div>
     </div>
 
+    <!-- Social Profiles -->
+    <div class="mb-8">
+      <h3 class="text-sm font-semibold mb-3 text-iris-accent">Social Profiles (optional)</h3>
+      <p class="text-xs text-iris-muted mb-3">Paste URLs or handles. We'll analyze your public profile to understand your professional identity.</p>
+      <div class="grid grid-cols-2 gap-3">
+        <input id="social-linkedin" type="text" class="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm focus:border-iris-accent focus:outline-none" placeholder="LinkedIn URL">
+        <input id="social-twitter" type="text" class="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm focus:border-iris-accent focus:outline-none" placeholder="Twitter/X @handle">
+        <input id="social-instagram" type="text" class="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm focus:border-iris-accent focus:outline-none" placeholder="Instagram @handle">
+        <input id="social-github" type="text" class="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm focus:border-iris-accent focus:outline-none" placeholder="GitHub username">
+        <input id="social-blog" type="text" class="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm focus:border-iris-accent focus:outline-none" placeholder="Blog/Medium URL">
+        <input id="social-facebook" type="text" class="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm focus:border-iris-accent focus:outline-none" placeholder="Facebook URL">
+      </div>
+    </div>
+
+    <!-- Interests & Entertainment -->
+    <div class="mb-8">
+      <h3 class="text-sm font-semibold mb-3 text-iris-accent">Interests & Favorites (optional)</h3>
+      <p class="text-xs text-iris-muted mb-3">Help the AI use references and analogies you'll appreciate.</p>
+      <div class="space-y-3">
+        <div>
+          <label class="text-xs text-iris-muted mb-1 block">Books / Authors</label>
+          <input id="int-books" type="text" class="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm focus:border-iris-accent focus:outline-none" placeholder="e.g., Zero to One, Thinking Fast and Slow, 三體">
+        </div>
+        <div>
+          <label class="text-xs text-iris-muted mb-1 block">Movies / TV Shows</label>
+          <input id="int-movies" type="text" class="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm focus:border-iris-accent focus:outline-none" placeholder="e.g., Inception, Breaking Bad, Silicon Valley">
+        </div>
+        <div>
+          <label class="text-xs text-iris-muted mb-1 block">Anime / Manga</label>
+          <input id="int-anime" type="text" class="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm focus:border-iris-accent focus:outline-none" placeholder="e.g., Ghost in the Shell, Gundam, Attack on Titan">
+        </div>
+        <div>
+          <label class="text-xs text-iris-muted mb-1 block">Hobbies / Other</label>
+          <input id="int-hobbies" type="text" class="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm focus:border-iris-accent focus:outline-none" placeholder="e.g., Chess, investing, photography, hiking">
+        </div>
+      </div>
+    </div>
+
+    <!-- MBTI + row -->
     <div class="mb-6">
       <label class="text-sm font-medium mb-2 block">MBTI (optional)</label>
       <select id="mbti" class="bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-iris-text focus:border-iris-accent focus:outline-none">
@@ -238,9 +277,14 @@ body { font-family: 'Sora', sans-serif; }
 
     <div class="flex justify-between mt-8">
       <button onclick="goToStep(3)" class="text-iris-muted hover:text-iris-text transition">← Back</button>
-      <a href="/" class="bg-iris-accent text-iris-bg px-6 py-2.5 rounded-xl font-medium transition inline-block">
-        Go to Engine Console →
-      </a>
+      <div class="flex gap-3">
+        <a href="/persona" class="bg-white/10 text-iris-muted px-4 py-2.5 rounded-xl text-sm hover:text-iris-text transition inline-block">
+          Edit Persona
+        </a>
+        <a href="/" class="bg-iris-accent text-iris-bg px-6 py-2.5 rounded-xl font-medium transition inline-block">
+          Engine Console →
+        </a>
+      </div>
     </div>
   </div>
 
@@ -327,20 +371,32 @@ async function saveAndNext() {
     q3: document.getElementById('q3').value.trim()
   };
   const mbti = document.getElementById('mbti').value;
+  const social = {
+    linkedin: document.getElementById('social-linkedin').value.trim(),
+    twitter: document.getElementById('social-twitter').value.trim(),
+    instagram: document.getElementById('social-instagram').value.trim(),
+    github: document.getElementById('social-github').value.trim(),
+    blog: document.getElementById('social-blog').value.trim(),
+    facebook: document.getElementById('social-facebook').value.trim(),
+  };
+  const entertainment = {
+    books: document.getElementById('int-books').value.trim(),
+    movies: document.getElementById('int-movies').value.trim(),
+    anime: document.getElementById('int-anime').value.trim(),
+    hobbies: document.getElementById('int-hobbies').value.trim(),
+  };
 
-  collectedData = { answers, mbti };
+  collectedData = { answers, mbti, social, entertainment };
 
   try {
     await fetch(API + '/onboarding/interview', {
       method: 'POST', headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({ answers })
     });
-    if (mbti) {
-      await fetch(API + '/onboarding/preferences', {
-        method: 'POST', headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({ mbti, interests: Object.values(answers).filter(Boolean) })
-      });
-    }
+    await fetch(API + '/onboarding/preferences', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ mbti, social, entertainment, interests: Object.values(answers).filter(Boolean) })
+    });
   } catch (e) {
     console.error('Save failed:', e);
   }
