@@ -71,6 +71,21 @@ def _ensure_schema(conn: sqlite3.Connection):
             FOREIGN KEY (batch_id) REFERENCES batches(id)
         );
 
+        CREATE TABLE IF NOT EXISTS onboarding (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            step TEXT NOT NULL,
+            data TEXT NOT NULL,
+            completed_at TEXT DEFAULT (datetime('now'))
+        );
+
+        CREATE TABLE IF NOT EXISTS persona (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            version TEXT NOT NULL,
+            data TEXT NOT NULL,
+            confidence REAL DEFAULT 0.0,
+            created_at TEXT DEFAULT (datetime('now'))
+        );
+
         CREATE INDEX IF NOT EXISTS idx_screenshots_batch ON screenshots(batch_id);
         CREATE INDEX IF NOT EXISTS idx_screenshots_captured ON screenshots(captured_at);
         CREATE INDEX IF NOT EXISTS idx_cards_time ON cards(start_time, end_time);
@@ -176,10 +191,64 @@ def get_cards(date: str = None, limit: int = 50) -> list[dict]:
     return results
 
 
+def save_onboarding_step(step: str, data: dict) -> int:
+    conn = get_db()
+    cur = conn.execute(
+        "INSERT INTO onboarding (step, data) VALUES (?, ?)",
+        (step, json.dumps(data))
+    )
+    conn.commit()
+    conn.close()
+    return cur.lastrowid
+
+
+def get_onboarding_step(step: str) -> dict | None:
+    conn = get_db()
+    row = conn.execute(
+        "SELECT * FROM onboarding WHERE step = ? ORDER BY id DESC LIMIT 1", (step,)
+    ).fetchone()
+    conn.close()
+    if not row:
+        return None
+    d = dict(row)
+    try:
+        d["data"] = json.loads(d["data"])
+    except (json.JSONDecodeError, TypeError):
+        pass
+    return d
+
+
+def save_persona(version: str, data: dict, confidence: float) -> int:
+    conn = get_db()
+    cur = conn.execute(
+        "INSERT INTO persona (version, data, confidence) VALUES (?, ?, ?)",
+        (version, json.dumps(data), confidence)
+    )
+    conn.commit()
+    conn.close()
+    return cur.lastrowid
+
+
+def get_latest_persona() -> dict | None:
+    conn = get_db()
+    row = conn.execute(
+        "SELECT * FROM persona ORDER BY id DESC LIMIT 1"
+    ).fetchone()
+    conn.close()
+    if not row:
+        return None
+    d = dict(row)
+    try:
+        d["data"] = json.loads(d["data"])
+    except (json.JSONDecodeError, TypeError):
+        pass
+    return d
+
+
 if __name__ == "__main__":
     conn = get_db()
     print(f"DB: {DB_PATH}")
-    for table in ("screenshots", "batches", "cards"):
+    for table in ("screenshots", "batches", "cards", "onboarding", "persona"):
         count = conn.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]
         print(f"  {table}: {count} rows")
     conn.close()

@@ -111,6 +111,10 @@ class Handler(BaseHTTPRequestHandler):
             self._api_onboarding_seed(data)
         elif path == "/api/v1/onboarding/persona":
             self._api_onboarding_persona(data)
+        elif path == "/api/v1/onboarding/interview":
+            self._api_onboarding_interview(data)
+        elif path == "/api/v1/onboarding/preferences":
+            self._api_onboarding_preferences(data)
         else:
             self.send_error(404)
 
@@ -133,13 +137,18 @@ class Handler(BaseHTTPRequestHandler):
             self._api_summary(params)
         elif path == "/api/v1/health":
             self._api_health()
+        elif path == "/api/v1/onboarding/seed/status":
+            self._api_seed_status()
+        elif path == "/api/v1/engine/stats":
+            self._api_engine_stats()
         else:
             self.send_error(404)
 
     def do_OPTIONS(self):
         self.send_response(200)
         self.send_header("Access-Control-Allow-Origin", "*")
-        self.send_header("Access-Control-Allow-Methods", "GET, OPTIONS")
+        self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+        self.send_header("Access-Control-Allow-Headers", "Content-Type")
         self.end_headers()
 
     def _serve_file(self, filepath, content_type):
@@ -273,7 +282,81 @@ class Handler(BaseHTTPRequestHandler):
             "sources_connected": sources
         }
 
+        # Persist persona
+        storage.save_persona(persona.get("version", "0.1.0"), persona, persona.get("confidence", 0))
         _json_response(self, persona)
+
+    def _api_onboarding_interview(self, data):
+        answers = data.get("answers", {})
+        storage.save_onboarding_step("interview", answers)
+        _json_response(self, {"status": "saved", "step": "interview"})
+
+    def _api_onboarding_preferences(self, data):
+        storage.save_onboarding_step("preferences", data)
+        _json_response(self, {"status": "saved", "step": "preferences"})
+
+    def _api_seed_status(self):
+        conn = storage.get_db()
+        now_ts = int(datetime.now().timestamp())
+        recent = conn.execute(
+            "SELECT COUNT(*) FROM screenshots WHERE captured_at > ?", (now_ts - 70,)
+        ).fetchone()[0]
+        total = conn.execute("SELECT COUNT(*) FROM screenshots").fetchone()[0]
+        conn.close()
+        target = 6
+        _json_response(self, {
+            "total_screenshots": total,
+            "recent_70s": recent,
+            "seed_target": target,
+            "complete": recent >= target,
+            "progress_pct": min(100, int(recent / target * 100))
+        })
+
+    def _api_engine_stats(self):
+        conn = storage.get_db()
+        s_total = conn.execute("SELECT COUNT(*) FROM screenshots").fetchone()[0]
+        s_unbatched = conn.execute("SELECT COUNT(*) FROM screenshots WHERE batch_id IS NULL").fetchone()[0]
+        latest_capture = conn.execute("SELECT captured_at FROM screenshots ORDER BY captured_at DESC LIMIT 1").fetchone()
+        b_total = conn.execute("SELECT COUNT(*) FROM batches").fetchone()[0]
+        b_completed = conn.execute("SELECT COUNT(*) FROM batches WHERE status='completed'").fetchone()[0]
+        b_failed = conn.execute("SELECT COUNT(*) FROM batches WHERE status='failed'").fetchone()[0]
+        avg_lat = conn.execute("SELECT AVG(llm_call_duration_ms) FROM batches WHERE status='completed'").fetchone()[0]
+        total_in_tok = conn.execute("SELECT SUM(llm_input_tokens) FROM batches WHERE status='completed'").fetchone()[0]
+        total_out_tok = conn.execute("SELECT SUM(llm_output_tokens) FROM batches WHERE status='completed'").fetchone()[0]
+        last_batch = conn.execute("SELECT * FROM batches ORDER BY id DESC LIMIT 1").fetchone()
+        c_total = conn.execute("SELECT COUNT(*) FROM cards").fetchone()[0]
+        conn.close()
+
+        captures_dir = Path.home() / ".mnemosyne" / "captures"
+        cap_size = sum(f.stat().st_size for f in captures_dir.rglob("*.jpg")) if captures_dir.exists() else 0
+        cap_interval = int(os.environ.get("MNEMOSYNE_CAPTURE_INTERVAL", "10"))
+        batch_interval = int(os.environ.get("MNEMOSYNE_BATCH_INTERVAL", "900"))
+
+        last_cap_ts = latest_capture[0] if latest_capture else 0
+        daemon_active = (int(datetime.now().timestamp()) - last_cap_ts) < cap_interval * 3
+
+        _json_response(self, {
+            "screenshots": {"total": s_total, "unbatched": s_unbatched},
+            "batches": {
+                "total": b_total, "completed": b_completed, "failed": b_failed,
+                "avg_latency_ms": round(avg_lat) if avg_lat else 0,
+                "total_input_tokens": total_in_tok or 0,
+                "total_output_tokens": total_out_tok or 0,
+                "last": {
+                    "id": dict(last_batch)["id"] if last_batch else None,
+                    "status": dict(last_batch)["status"] if last_batch else None,
+                    "time": dict(last_batch)["created_at"] if last_batch else None,
+                } if last_batch else None
+            },
+            "cards": {"total": c_total},
+            "storage": {"captures_size_mb": round(cap_size / 1024 / 1024, 1)},
+            "daemon": {
+                "active": daemon_active,
+                "capture_interval": cap_interval,
+                "batch_interval": batch_interval,
+                "last_capture": datetime.fromtimestamp(last_cap_ts).isoformat() if last_cap_ts else None,
+            }
+        })
 
     def _api_health(self):
         conn = storage.get_db()
