@@ -340,9 +340,10 @@ class Handler(BaseHTTPRequestHandler):
         conn.close()
 
         captures_dir = Path.home() / ".mnemosyne" / "captures"
-        cap_size = sum(f.stat().st_size for f in captures_dir.rglob("*.jpg")) if captures_dir.exists() else 0
+        cap_size = sum(f.stat().st_size for f in captures_dir.rglob("*.jpg") if f.is_file()) if captures_dir.exists() else 0
         cap_interval = int(os.environ.get("MNEMOSYNE_CAPTURE_INTERVAL", "10"))
         batch_interval = int(os.environ.get("MNEMOSYNE_BATCH_INTERVAL", "900"))
+        storage_quota_gb = float(os.environ.get("MNEMOSYNE_STORAGE_QUOTA_GB", "5"))
 
         last_cap_ts = latest_capture[0] if latest_capture else 0
         daemon_active = (int(datetime.now().timestamp()) - last_cap_ts) < cap_interval * 3
@@ -361,7 +362,12 @@ class Handler(BaseHTTPRequestHandler):
                 } if last_batch else None
             },
             "cards": {"total": c_total},
-            "storage": {"captures_size_mb": round(cap_size / 1024 / 1024, 1)},
+            "storage": {
+                "captures_size_mb": round(cap_size / 1024 / 1024, 1),
+                "captures_size_gb": round(cap_size / (1024 ** 3), 2),
+                "quota_gb": storage_quota_gb,
+                "usage_pct": round(cap_size / (storage_quota_gb * 1024 ** 3) * 100) if storage_quota_gb > 0 else 0
+            },
             "daemon": {
                 "active": daemon_active,
                 "capture_interval": cap_interval,

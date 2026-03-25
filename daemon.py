@@ -22,6 +22,8 @@ import aw_bridge
 CAPTURE_INTERVAL = int(os.environ.get("MNEMOSYNE_CAPTURE_INTERVAL", "10"))
 BATCH_INTERVAL = int(os.environ.get("MNEMOSYNE_BATCH_INTERVAL", str(15 * 60)))  # 15 min
 MIN_SCREENSHOTS_PER_BATCH = 3
+STORAGE_QUOTA_GB = float(os.environ.get("MNEMOSYNE_STORAGE_QUOTA_GB", "5"))
+CLEANUP_INTERVAL = 60 * 60  # check every hour
 
 running = True
 
@@ -111,6 +113,7 @@ def main():
     capture_count = 0
     last_batch_time = time.time()
     last_persona_time = time.time()
+    last_cleanup_time = time.time()
     PERSONA_INTERVAL = 2 * 60 * 60  # every 2 hours
 
     conn = storage.get_db()
@@ -143,6 +146,11 @@ def main():
             do_persona_synthesis()
             last_persona_time = time.time()
 
+        # Storage cleanup on interval
+        if (time.time() - last_cleanup_time) >= CLEANUP_INTERVAL:
+            do_storage_cleanup()
+            last_cleanup_time = time.time()
+
         # Sleep (in small increments so Ctrl+C is responsive)
         for _ in range(CAPTURE_INTERVAL * 10):
             if not running:
@@ -157,6 +165,59 @@ def main():
         do_persona_synthesis()
 
     print(f"[{now()}] Done. {capture_count} captures this session.")
+
+
+def do_storage_cleanup():
+    """Delete oldest screenshots when storage exceeds quota. Keeps DB records (marks as deleted)."""
+    captures_dir = Path.home() / ".mnemosyne" / "captures"
+    if not captures_dir.exists():
+        return
+
+    # Calculate current size
+    total_bytes = sum(f.stat().st_size for f in captures_dir.rglob("*.jpg") if f.is_file())
+    total_gb = total_bytes / (1024 ** 3)
+    quota = STORAGE_QUOTA_GB
+
+    if total_gb <= quota:
+        return
+
+    excess_gb = total_gb - quota
+    print(f"[{now()}] Storage cleanup: {total_gb:.1f} GB > {quota:.0f} GB quota, removing {excess_gb:.1f} GB")
+
+    # Get all jpg files sorted by age (oldest first)
+    files = sorted(captures_dir.rglob("*.jpg"), key=lambda f: f.stat().st_mtime)
+
+    freed = 0
+    deleted_count = 0
+    target_bytes = excess_gb * (1024 ** 3)
+
+    conn = storage.get_db()
+    for f in files:
+        if freed >= target_bytes:
+            break
+        size = f.stat().st_size
+        path_str = str(f)
+
+        # Mark as deleted in DB
+        conn.execute("UPDATE screenshots SET is_deleted = 1 WHERE file_path = ?", (path_str,))
+
+        # Delete file
+        try:
+            f.unlink()
+            freed += size
+            deleted_count += 1
+        except OSError:
+            pass
+
+    conn.commit()
+    conn.close()
+
+    # Remove empty date directories
+    for d in captures_dir.iterdir():
+        if d.is_dir() and not any(d.iterdir()):
+            d.rmdir()
+
+    print(f"[{now()}] Cleaned {deleted_count} files, freed {freed / (1024**3):.1f} GB")
 
 
 def do_persona_synthesis():
