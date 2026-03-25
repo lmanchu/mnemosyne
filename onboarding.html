@@ -90,8 +90,18 @@ body { font-family: 'Sora', sans-serif; }
     </div>
 
     <div class="p-4 rounded-xl bg-white/5 border border-iris-accent/20">
-      <div class="text-xs text-iris-accent font-semibold uppercase tracking-wider mb-1">Privacy</div>
-      <div class="text-sm text-iris-muted">All data stays on this machine. Screenshots are processed locally and never uploaded.</div>
+      <div class="text-xs text-iris-accent font-semibold uppercase tracking-wider mb-1">Privacy & Storage</div>
+      <div class="text-sm text-iris-muted mb-2">All data stays on this machine. Screenshots are processed locally and never uploaded.</div>
+      <div id="storage-info" class="text-sm text-iris-muted">
+        <div class="flex justify-between mb-1">
+          <span>Storage usage</span>
+          <span id="onb-storage-label">— / 10 GB</span>
+        </div>
+        <div class="w-full h-1.5 rounded-full bg-white/10">
+          <div id="onb-storage-bar" class="h-1.5 rounded-full bg-iris-accent transition-all" style="width:0%"></div>
+        </div>
+        <div class="text-xs text-iris-muted/70 mt-1">Oldest screenshots are automatically deleted when quota is reached. Activity cards are kept forever.</div>
+      </div>
     </div>
 
     <div class="flex justify-end mt-8">
@@ -347,6 +357,16 @@ async function checkEngine() {
     document.getElementById('capture-badge').textContent = '✓ Active';
     document.getElementById('capture-badge').className = 'ml-auto text-xs px-2 py-1 rounded-full bg-emerald-500/20 text-emerald-400';
     document.getElementById('step1-next').disabled = false;
+    // Storage info
+    try {
+      const sr = await fetch(API + '/engine/stats');
+      const stats = await sr.json();
+      const sg = stats.storage?.captures_size_gb || 0;
+      const qg = stats.storage?.quota_gb || 10;
+      const up = stats.storage?.usage_pct || 0;
+      document.getElementById('onb-storage-label').textContent = `${sg.toFixed(1)} / ${qg} GB (${up}%)`;
+      document.getElementById('onb-storage-bar').style.width = Math.min(up, 100) + '%';
+    } catch(se) {}
   } catch (e) {
     document.getElementById('engine-dot').className = 'w-3 h-3 rounded-full bg-red-400';
     document.getElementById('engine-label').textContent = 'Engine Offline';

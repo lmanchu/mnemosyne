@@ -22,7 +22,7 @@ import aw_bridge
 CAPTURE_INTERVAL = int(os.environ.get("MNEMOSYNE_CAPTURE_INTERVAL", "10"))
 BATCH_INTERVAL = int(os.environ.get("MNEMOSYNE_BATCH_INTERVAL", str(15 * 60)))  # 15 min
 MIN_SCREENSHOTS_PER_BATCH = 3
-STORAGE_QUOTA_GB = float(os.environ.get("MNEMOSYNE_STORAGE_QUOTA_GB", "5"))
+STORAGE_QUOTA_GB = float(os.environ.get("MNEMOSYNE_STORAGE_QUOTA_GB", "10"))
 CLEANUP_INTERVAL = 60 * 60  # check every hour
 
 running = True

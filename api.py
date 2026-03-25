@@ -343,7 +343,7 @@ class Handler(BaseHTTPRequestHandler):
         cap_size = sum(f.stat().st_size for f in captures_dir.rglob("*.jpg") if f.is_file()) if captures_dir.exists() else 0
         cap_interval = int(os.environ.get("MNEMOSYNE_CAPTURE_INTERVAL", "10"))
         batch_interval = int(os.environ.get("MNEMOSYNE_BATCH_INTERVAL", "900"))
-        storage_quota_gb = float(os.environ.get("MNEMOSYNE_STORAGE_QUOTA_GB", "5"))
+        storage_quota_gb = float(os.environ.get("MNEMOSYNE_STORAGE_QUOTA_GB", "10"))
 
         last_cap_ts = latest_capture[0] if latest_capture else 0
         daemon_active = (int(datetime.now().timestamp()) - last_cap_ts) < cap_interval * 3

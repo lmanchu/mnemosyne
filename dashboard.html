@@ -90,6 +90,12 @@ tailwind.config = {
     <div class="p-4 rounded-xl bg-eng-card">
       <div class="text-eng-muted text-xs uppercase tracking-wider mb-1">Storage</div>
       <div id="st-storage" class="text-2xl font-bold text-eng-accent">—</div>
+      <div class="mt-2">
+        <div class="w-full h-1.5 rounded-full bg-white/10">
+          <div id="st-storage-bar" class="h-1.5 rounded-full bg-eng-accent transition-all" style="width:0%"></div>
+        </div>
+        <div id="st-storage-label" class="text-xs text-eng-muted mt-1">— / — GB</div>
+      </div>
     </div>
   </div>
 
@@ -178,7 +184,13 @@ async function loadStats() {
   document.getElementById('st-latency').textContent = s.batches?.avg_latency_ms ? (s.batches.avg_latency_ms / 1000).toFixed(1) + 's' : '—';
   const tokens = (s.batches?.total_input_tokens || 0) + (s.batches?.total_output_tokens || 0);
   document.getElementById('st-tokens').textContent = tokens > 1000 ? (tokens / 1000).toFixed(1) + 'K' : tokens;
-  document.getElementById('st-storage').textContent = s.storage?.captures_size_mb + ' MB';
+  const sizeGb = s.storage?.captures_size_gb || 0;
+  const quotaGb = s.storage?.quota_gb || 10;
+  const usagePct = s.storage?.usage_pct || 0;
+  document.getElementById('st-storage').textContent = sizeGb < 1 ? (sizeGb * 1024).toFixed(0) + ' MB' : sizeGb.toFixed(1) + ' GB';
+  document.getElementById('st-storage-bar').style.width = Math.min(usagePct, 100) + '%';
+  document.getElementById('st-storage-bar').className = 'h-1.5 rounded-full transition-all ' + (usagePct > 90 ? 'bg-red-400' : usagePct > 70 ? 'bg-amber-400' : 'bg-eng-accent');
+  document.getElementById('st-storage-label').textContent = `${sizeGb.toFixed(1)} / ${quotaGb} GB (${usagePct}%)`;
 
   // Success rate
   const completed = s.batches?.completed || 0;
