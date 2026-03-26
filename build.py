@@ -9,11 +9,15 @@ import os
 import sys
 import subprocess
 import shutil
+from datetime import datetime
 from pathlib import Path
 
 ROOT = Path(__file__).parent
 DIST = ROOT / "dist"
 BUILD = ROOT / "build"
+
+VERSION = os.environ.get("MNEMOSYNE_BUILD_VERSION", "0.6.0")
+DATE_CODE = datetime.now().strftime("%Y%m%d")
 
 DATA_FILES = [
     "dashboard.html",
@@ -80,12 +84,28 @@ def build():
         if src.exists() and not dst.exists():
             shutil.copy2(src, dst)
 
+    # Write version file
+    (dist_dir / "VERSION").write_text(f"{VERSION}\n{DATE_CODE}\n")
+
     print(f"\nBuild complete: {dist_dir}")
+    print(f"Version: v{VERSION} ({DATE_CODE})")
     print(f"Run: {dist_dir / 'mnemosyne.exe'}")
 
     # Show size
     total = sum(f.stat().st_size for f in dist_dir.rglob("*") if f.is_file())
     print(f"Total size: {total / 1024 / 1024:.1f} MB")
+
+    # Create zip with version + date code
+    zip_name = f"mnemosyne-v{VERSION}-{DATE_CODE}-windows-x64.zip"
+    zip_path = DIST / zip_name
+    if zip_path.exists():
+        zip_path.unlink()
+    import zipfile
+    with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zf:
+        for f in dist_dir.rglob("*"):
+            if f.is_file():
+                zf.write(f, f"mnemosyne/{f.relative_to(dist_dir)}")
+    print(f"Zip: {zip_path} ({zip_path.stat().st_size / 1024 / 1024:.1f} MB)")
 
 
 if __name__ == "__main__":
