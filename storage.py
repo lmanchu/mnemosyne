@@ -191,6 +191,29 @@ def get_cards(date: str = None, limit: int = 50) -> list[dict]:
     return results
 
 
+def get_cards_since(days: int = 3, limit: int = 500) -> list[dict]:
+    """Get all cards from the last N days."""
+    conn = get_db()
+    cutoff = (datetime.now().timestamp() - days * 86400)
+    cutoff_iso = datetime.fromtimestamp(cutoff).isoformat()
+    rows = conn.execute(
+        "SELECT * FROM cards WHERE start_time >= ? ORDER BY start_time DESC LIMIT ?",
+        (cutoff_iso, limit)
+    ).fetchall()
+    conn.close()
+    results = []
+    for r in rows:
+        d = dict(r)
+        for field in ("apps_used", "urls_visited", "distractions"):
+            if d.get(field):
+                try:
+                    d[field] = json.loads(d[field])
+                except (json.JSONDecodeError, TypeError):
+                    pass
+        results.append(d)
+    return results
+
+
 def save_onboarding_step(step: str, data: dict) -> int:
     conn = get_db()
     cur = conn.execute(

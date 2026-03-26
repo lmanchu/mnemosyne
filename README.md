@@ -2,17 +2,24 @@
 
 > Context-Aware Engine for AIPC — understands what you're doing, not just which app is open.
 
-Mnemosyne watches your screen, analyzes it with AI, and produces structured context that IrisGo uses to personalize everything. Local-first. Multi-provider. ~1500 lines of Python.
+Mnemosyne watches your screen, analyzes it with AI, and produces structured context that IrisGo uses to personalize everything. Local-first. Multi-provider. ~2800 lines of Python.
 
 ## How It Works
 
 ```
-Every 10 seconds          Every 15 minutes              Always available
+Every 10 seconds          Every 15 minutes              Every 3 days
 ┌──────────────┐          ┌────────────────────┐        ┌──────────────┐
-│  Screenshot  │──batch──▶│  VLM: what is the  │──────▶│  REST API    │
-│  + metadata  │          │  user doing?       │        │  localhost:   │
-│  (mss + AW)  │          │  → ActivityCard    │        │  5700        │
-└──────────────┘          └────────────────────┘        └──────────────┘
+│  Screenshot  │──batch──▶│  VLM: what is the  │──────▶│  Dynamic     │
+│  + metadata  │          │  user doing?       │        │  Persona     │
+│  (mss + AW)  │          │  → ActivityCard    │        │  (auto-evolve│
+└──────────────┘          └────────────────────┘        └──────┬───────┘
+                                                               │
+                                Always available               ▼
+                                ┌──────────────────────────────────┐
+                                │  REST API (localhost:5700)       │
+                                │  MCP Server (stdio)              │
+                                │  IrisGo Skill (SKILL.md)         │
+                                └──────────────────────────────────┘
 ```
 
 **Input**: Screenshots (JPEG, 1080p) + ActivityWatch metadata (app, window title, URL, AFK)
@@ -47,20 +54,21 @@ GEMINI_API_KEY=your_key python pipeline.py --count 3
 python api.py
 ```
 
-## What's Built (as of 2026-03-24)
+## What's Built (as of 2026-03-26)
 
 | File | Lines | What it does | Status |
 |------|------:|-------------|--------|
 | `capture.py` | 50 | Screenshot → 1080p JPEG (250ms, ~350KB) | Validated on Windows 11 AIPC |
 | `test_vlm.py` | 80 | Single screenshot → Gemini Flash → activity description | Confidence 1.0 |
-| `storage.py` | 210 | SQLite: 5 tables (screenshots, batches, cards, onboarding, persona) | Working |
+| `storage.py` | 230 | SQLite: 5 tables + get_cards_since() for persona evolve | Working |
 | `provider_gemini.py` | 150 | Gemini 2.5 Flash: transcribe + generate card (2 API calls) | Working |
 | `pipeline.py` | 100 | End-to-end: capture → batch → analyze → store | Produces real ActivityCards |
-| `daemon.py` | 150 | Background daemon: continuous capture + periodic analysis | Running (1800+ screenshots) |
+| `daemon.py` | 150 | Background daemon: continuous capture + periodic analysis | Running (19K+ screenshots) |
+| `app.py` | 300 | Unified entry point: daemon + API + 3-day persona auto-evolve | Working |
 | `mcp_server.py` | 200 | MCP server: 5 tools + 1 resource + background capture | Working |
-| `persona.py` | 400 | Persona evolution: daily synthesis + markdown export/import | Working |
-| `api.py` | 430 | REST API + onboarding + persona + engine stats (localhost:5700) | Working |
-| `dashboard.html` | 220 | Engine Console: pipeline status, metrics, batch history (cyan) | Working |
+| `persona.py` | 460 | Persona evolution: daily synthesis + markdown export/import | Working |
+| `api.py` | 450 | REST API + onboarding + persona inline + engine stats | Working |
+| `dashboard.html` | 400 | Engine Console: pipeline + data quality + inline persona editing | Working |
 | `onboarding.html` | 380 | 4-step onboarding: interview + social profiles + interests | Working |
 | `persona-editor.html` | 180 | Markdown persona editor with Edit/Preview + Ctrl+S | Working |
 | `INTERFACE.md` | 400 | Interface spec + Philosophy (Memory vs Context Engine) | Spec complete |
@@ -91,8 +99,9 @@ mnemosyne/
 ├── daemon.py            # Background daemon: continuous capture + analysis
 ├── mcp_server.py        # MCP server: 5 tools for IrisGo integration
 ├── persona.py           # Persona evolution: synthesize + markdown I/O
-├── api.py               # REST API + onboarding + persona (localhost:5700)
-├── dashboard.html       # Engine Console (cyan accent, system diagnostics)
+├── app.py               # Unified entry: daemon + API + persona auto-evolve
+├── api.py               # REST API + onboarding + persona inline (localhost:5700)
+├── dashboard.html       # Engine Console (pipeline + data quality + persona editing)
 ├── onboarding.html      # 4-step onboarding (interview + social + interests)
 ├── persona-editor.html  # Markdown persona editor (Edit/Preview)
 ├── test_vlm.py          # VLM validation script
@@ -124,27 +133,35 @@ mnemosyne/
 - [x] Phase 8: Persona evolution (daily synthesis from ActivityCards)
 - [x] Persona editor: Editable markdown at `/persona` (user edits override AI)
 - [x] Social profiles + interests in onboarding (LinkedIn, Twitter, IG, GitHub, books, anime, etc.)
-- [x] Daemon: Background capture + periodic analysis (2000+ screenshots accumulated)
+- [x] Daemon: Background capture + periodic analysis (19K+ screenshots accumulated)
 - [x] Windows auto-start: `start.bat` in Startup folder
+- [x] Dynamic Persona: 3-day auto-evolve with sticky user edits
+- [x] Dashboard: Inline persona editing (click-to-edit fields)
+- [x] Unified entry point: `app.py` (daemon + API in one process)
+- [x] IrisGo Skill: Standard SKILL.md for IrisGo app integration
+- [x] Claude Code Skill: `/mnemosyne` command for CLI usage
+- [x] ActivityWatch bridge: metadata enrichment (app, window title, URL, AFK)
 - [ ] Phase 3: Multi-provider (Claude, OpenAI, Ollama)
-- [ ] Phase 6: IrisGo app integration
-- [ ] Phase 7: ActivityWatch bridge for metadata enrichment
+- [ ] Social profile scanning (onboarding collects URLs but doesn't analyze yet)
 
 ## API
 
 Running on `http://localhost:5700`:
 
 ```
-GET /                       # Dashboard UI
-GET /api/v1/context/now      # Current activity + system prompt fragment
-GET /api/v1/cards            # ActivityCards by date/category
-GET /api/v1/profile          # Aggregated context profile
-GET /api/v1/summary          # Day summary
-GET /api/v1/health           # System status
-GET /api/v1/engine/stats     # Comprehensive engine metrics
-GET /api/v1/persona?format=  # Current persona (json or markdown)
-POST /api/v1/persona         # Save edited persona markdown
-POST /api/v1/onboarding/*    # Interview, preferences, seed, persona generation
+GET /                            # Dashboard UI (with inline persona editing)
+GET /persona                     # Persona markdown editor
+GET /onboarding                  # First-time onboarding flow
+GET /api/v1/context/now          # Current activity + system prompt fragment
+GET /api/v1/cards                # ActivityCards by date/category
+GET /api/v1/profile              # Aggregated context profile
+GET /api/v1/summary              # Day summary
+GET /api/v1/health               # System status
+GET /api/v1/engine/stats         # Comprehensive engine metrics
+GET /api/v1/persona?format=      # Current persona (json or markdown)
+POST /api/v1/persona             # Save edited persona markdown
+POST /api/v1/persona/inline      # Save persona fields directly (JSON)
+POST /api/v1/onboarding/*        # Interview, preferences, seed, persona generation
 ```
 
 ## MCP Integration

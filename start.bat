@@ -14,11 +14,8 @@ set PYTHONUNBUFFERED=1
 REM Activate venv
 call "%PROJECT%.venv\Scripts\activate.bat"
 
-REM Start daemon (background)
-start "Mnemosyne Daemon" /min %PYTHON% -u "%PROJECT%daemon.py"
-
-REM Start API server (background)
-start "Mnemosyne API" /min %PYTHON% -u "%PROJECT%api.py"
+REM Start unified daemon + API (single process)
+start "Mnemosyne" /min %PYTHON% -u "%PROJECT%app.py"
 
 echo Mnemosyne started.
 echo   Daemon: capturing every 10s, analyzing every 15min

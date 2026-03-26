@@ -21,6 +21,21 @@ tailwind.config = {
   @import url('https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&display=swap');
   body { font-family: 'Sora', sans-serif; }
   .card-block:hover { transform: translateY(-1px); transition: all 0.2s; }
+  .editable:hover { background: rgba(103,232,249,0.08); border-radius: 4px; cursor: pointer; }
+  .editable-active { background: rgba(103,232,249,0.12) !important; border-radius: 4px; }
+  .edit-input {
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(103,232,249,0.4);
+    border-radius: 6px;
+    padding: 4px 8px;
+    color: #E5E0DF;
+    font-family: 'Sora', sans-serif;
+    font-size: 13px;
+    width: 100%;
+    outline: none;
+  }
+  .edit-input:focus { border-color: #67E8F9; }
+  .tag-input { font-size: 12px; padding: 2px 6px; }
 </style>
 </head>
 <body class="bg-eng-bg text-eng-text min-h-screen">
@@ -31,16 +46,26 @@ tailwind.config = {
   <header class="flex items-center justify-between mb-8">
     <div>
       <h1 class="text-2xl font-bold text-eng-accent">Mnemosyne Engine Console</h1>
-      <p class="text-eng-muted text-sm mt-1">System Diagnostics</p>
+      <p class="text-eng-muted text-sm mt-1">System Diagnostics & Persona</p>
     </div>
     <div class="flex items-center gap-4">
-      <a href="/onboarding" class="text-xs text-eng-accent hover:underline">Run Onboarding</a>
       <div id="daemon-badge" class="flex items-center gap-2 px-3 py-1.5 rounded-full border border-eng-muted/30">
         <span id="daemon-dot" class="w-2 h-2 rounded-full bg-gray-500"></span>
         <span id="daemon-text" class="text-xs text-eng-muted">Loading...</span>
       </div>
     </div>
   </header>
+
+  <!-- No Persona Banner (shown only when no persona exists) -->
+  <div id="no-persona-banner" class="hidden mb-6 p-4 rounded-xl bg-eng-card border border-eng-accent/30">
+    <div class="flex items-center justify-between">
+      <div>
+        <div class="text-sm font-medium">No persona yet</div>
+        <div class="text-xs text-eng-muted mt-1">Run the onboarding to create your Ground Zero persona, or let the engine collect data for 3 days.</div>
+      </div>
+      <a href="/onboarding" class="bg-eng-accent text-eng-bg px-4 py-2 rounded-lg text-sm font-medium hover:opacity-90 transition">Run Onboarding</a>
+    </div>
+  </div>
 
   <!-- Pipeline Status -->
   <section id="pipeline" class="mb-6 p-5 rounded-xl bg-eng-card border border-eng-accent/20">
@@ -99,13 +124,13 @@ tailwind.config = {
     </div>
   </div>
 
-  <!-- Two columns: Batches + Data Quality -->
+  <!-- Three columns: Batches + Data Quality + Persona -->
   <div class="grid grid-cols-3 gap-6">
 
-    <!-- Recent Batches (2/3) -->
-    <div class="col-span-2">
+    <!-- Recent Batches (1/3) -->
+    <div>
       <h2 class="text-lg font-semibold mb-4 text-eng-accent">Recent Batches</h2>
-      <div id="batches" class="space-y-3">
+      <div id="batches" class="space-y-3" style="max-height: 600px; overflow-y: auto;">
         <div class="text-eng-muted text-sm">Loading...</div>
       </div>
     </div>
@@ -114,12 +139,12 @@ tailwind.config = {
     <div>
       <h2 class="text-lg font-semibold mb-4 text-eng-accent">Data Quality</h2>
 
-      <div class="mb-6 p-4 rounded-xl bg-eng-card">
+      <div class="mb-4 p-4 rounded-xl bg-eng-card">
         <div class="text-eng-muted text-xs uppercase tracking-wider mb-3">Category Distribution</div>
         <div id="cat-bars"></div>
       </div>
 
-      <div class="mb-6 p-4 rounded-xl bg-eng-card">
+      <div class="mb-4 p-4 rounded-xl bg-eng-card">
         <div class="text-eng-muted text-xs uppercase tracking-wider mb-3">Apps Detected</div>
         <div id="apps-list" class="flex flex-wrap gap-2"></div>
       </div>
@@ -130,18 +155,121 @@ tailwind.config = {
         <div id="success-detail" class="text-xs text-eng-muted mt-1"></div>
       </div>
     </div>
+
+    <!-- Dynamic Persona (1/3) -->
+    <div>
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="text-lg font-semibold text-eng-accent">Persona</h2>
+        <div class="flex items-center gap-2">
+          <span id="persona-version" class="text-xs text-eng-muted"></span>
+          <span id="persona-save-status" class="text-xs text-eng-muted hidden"></span>
+          <a href="/persona" class="text-xs text-eng-accent hover:underline" title="Full markdown editor">Edit MD</a>
+        </div>
+      </div>
+
+      <div id="persona-container">
+        <!-- Confidence -->
+        <div class="mb-4 p-4 rounded-xl bg-eng-card">
+          <div class="flex items-center justify-between mb-2">
+            <div class="text-eng-muted text-xs uppercase tracking-wider">Confidence</div>
+            <div id="ps-confidence" class="text-lg font-bold text-eng-accent">—</div>
+          </div>
+          <div class="w-full h-1.5 rounded-full bg-white/10">
+            <div id="ps-confidence-bar" class="h-1.5 rounded-full bg-eng-accent transition-all" style="width:0%"></div>
+          </div>
+          <div id="ps-confidence-msg" class="text-xs text-eng-muted mt-2"></div>
+        </div>
+
+        <!-- Identity -->
+        <div class="mb-4 p-4 rounded-xl bg-eng-card">
+          <div class="text-eng-muted text-xs uppercase tracking-wider mb-3">Identity</div>
+          <div class="space-y-2">
+            <div class="flex items-center justify-between">
+              <span class="text-xs text-eng-muted w-16">Role</span>
+              <span id="ps-role" class="editable text-sm flex-1 text-right px-1 py-0.5" data-field="role" onclick="startEdit(this)">—</span>
+            </div>
+            <div class="flex items-center justify-between">
+              <span class="text-xs text-eng-muted w-16">Seniority</span>
+              <span id="ps-seniority" class="editable text-sm flex-1 text-right px-1 py-0.5" data-field="seniority" onclick="startEdit(this)">—</span>
+            </div>
+            <div class="flex items-center justify-between">
+              <span class="text-xs text-eng-muted w-16">MBTI</span>
+              <span id="ps-mbti" class="editable text-sm flex-1 text-right px-1 py-0.5" data-field="mbti" onclick="startEdit(this)">—</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Summary -->
+        <div class="mb-4 p-4 rounded-xl bg-eng-card">
+          <div class="text-eng-muted text-xs uppercase tracking-wider mb-2">Summary</div>
+          <div id="ps-summary" class="editable text-sm text-eng-text/80 px-1 py-1 leading-relaxed" data-field="summary" onclick="startEdit(this, true)">—</div>
+        </div>
+
+        <!-- Work Style -->
+        <div class="mb-4 p-4 rounded-xl bg-eng-card">
+          <div class="text-eng-muted text-xs uppercase tracking-wider mb-3">Work Style</div>
+          <div class="space-y-2">
+            <div class="flex items-center justify-between">
+              <span class="text-xs text-eng-muted">Type</span>
+              <span id="ps-work-type" class="editable text-sm px-1 py-0.5" data-field="work_type" onclick="startEdit(this)">—</span>
+            </div>
+            <div class="flex items-center justify-between">
+              <span class="text-xs text-eng-muted">Peak hours</span>
+              <span id="ps-peak-hours" class="editable text-sm px-1 py-0.5" data-field="peak_hours" onclick="startEdit(this)">—</span>
+            </div>
+            <div class="flex items-center justify-between">
+              <span class="text-xs text-eng-muted">Communication</span>
+              <span id="ps-communication" class="editable text-sm px-1 py-0.5" data-field="communication" onclick="startEdit(this)">—</span>
+            </div>
+            <div class="flex items-center justify-between">
+              <span class="text-xs text-eng-muted">Focus</span>
+              <span id="ps-focus" class="editable text-sm px-1 py-0.5" data-field="focus_level" onclick="startEdit(this)">—</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Interests -->
+        <div class="mb-4 p-4 rounded-xl bg-eng-card">
+          <div class="flex items-center justify-between mb-3">
+            <div class="text-eng-muted text-xs uppercase tracking-wider">Interests</div>
+            <button onclick="addInterest()" class="text-eng-accent text-xs hover:underline">+ Add</button>
+          </div>
+          <div id="ps-interests" class="flex flex-wrap gap-2"></div>
+        </div>
+
+        <!-- Tools -->
+        <div class="mb-4 p-4 rounded-xl bg-eng-card">
+          <div class="text-eng-muted text-xs uppercase tracking-wider mb-3">Primary Tools</div>
+          <div id="ps-tools" class="flex flex-wrap gap-2"></div>
+        </div>
+
+        <!-- Persona Meta -->
+        <div class="p-4 rounded-xl bg-eng-card">
+          <div class="text-eng-muted text-xs uppercase tracking-wider mb-2">Persona Info</div>
+          <div class="space-y-1 text-xs text-eng-muted">
+            <div id="ps-days-observed">Days observed: —</div>
+            <div id="ps-cards-analyzed">Cards analyzed: —</div>
+            <div id="ps-last-evolved">Last evolved: —</div>
+            <div id="ps-next-evolve">Next auto-evolve: —</div>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 
   <!-- Footer -->
-  <footer class="mt-12 pt-6 border-t border-eng-muted/20 text-center text-eng-muted text-xs">
-    Mnemosyne Engine Console — <a href="https://irisgo.ai" class="text-eng-accent hover:underline">IrisGo.AI</a>
-    &middot; <a href="/onboarding" class="text-eng-accent hover:underline">Onboarding</a>
-    &middot; <a href="https://github.com/lmanchu/mnemosyne" class="text-eng-accent hover:underline">GitHub</a>
+  <footer class="mt-12 pt-6 border-t border-eng-muted/20 flex items-center justify-between text-eng-muted text-xs">
+    <span>Mnemosyne Engine Console — <a href="https://irisgo.ai" class="text-eng-accent hover:underline">IrisGo.AI</a></span>
+    <span>
+      <a href="/onboarding" class="hover:text-eng-accent transition">Re-run Onboarding</a>
+      &middot; <a href="https://github.com/lmanchu/mnemosyne" class="hover:text-eng-accent transition">GitHub</a>
+    </span>
   </footer>
 </div>
 
 <script>
 const API = window.location.origin + '/api/v1';
+let personaData = null;  // current persona state for editing
 
 const CAT_COLORS = {
   'Development': '#67E8F9', 'Communication': '#7DD3FC', 'Research': '#C4B5FD',
@@ -157,11 +285,12 @@ async function fetchJSON(path) {
   catch(e) { return null; }
 }
 
+// ── Engine Stats ────────────────────────────────
+
 async function loadStats() {
   const s = await fetchJSON('/engine/stats');
   if (!s) { document.getElementById('daemon-text').textContent = 'Offline'; return; }
 
-  // Daemon badge
   if (s.daemon?.active) {
     document.getElementById('daemon-dot').className = 'w-2 h-2 rounded-full bg-emerald-400';
     document.getElementById('daemon-text').textContent = 'Daemon active';
@@ -170,14 +299,12 @@ async function loadStats() {
     document.getElementById('daemon-text').textContent = 'Daemon inactive';
   }
 
-  // Pipeline
   document.getElementById('pl-daemon').textContent = s.daemon?.active ? 'Active' : 'Stopped';
   document.getElementById('pl-daemon').className = 'font-medium ' + (s.daemon?.active ? 'text-emerald-400' : 'text-red-400');
   document.getElementById('pl-last-batch').textContent = s.batches?.last?.time || 'Never';
   document.getElementById('pl-capture-int').textContent = s.daemon?.capture_interval + 's';
   document.getElementById('pl-batch-int').textContent = Math.round(s.daemon?.batch_interval / 60) + ' min';
 
-  // Stats
   document.getElementById('st-screenshots').textContent = s.screenshots?.total || 0;
   document.getElementById('st-cards').textContent = s.cards?.total || 0;
   document.getElementById('st-pending').textContent = s.screenshots?.unbatched || 0;
@@ -192,13 +319,14 @@ async function loadStats() {
   document.getElementById('st-storage-bar').className = 'h-1.5 rounded-full transition-all ' + (usagePct > 90 ? 'bg-red-400' : usagePct > 70 ? 'bg-amber-400' : 'bg-eng-accent');
   document.getElementById('st-storage-label').textContent = `${sizeGb.toFixed(1)} / ${quotaGb} GB (${usagePct}%)`;
 
-  // Success rate
   const completed = s.batches?.completed || 0;
   const total = s.batches?.total || 0;
   const rate = total > 0 ? Math.round(completed / total * 100) : 0;
   document.getElementById('success-rate').textContent = rate + '%';
   document.getElementById('success-detail').textContent = `${completed} completed / ${s.batches?.failed || 0} failed / ${total} total`;
 }
+
+// ── Batches ─────────────────────────────────────
 
 async function loadBatches() {
   const today = new Date().toISOString().split('T')[0];
@@ -215,21 +343,21 @@ async function loadBatches() {
     const apps = Array.isArray(c.apps_used) ? c.apps_used : [];
     const color = catColor(c.category);
     return `
-      <div class="card-block p-4 rounded-xl bg-eng-card border-l-4" style="border-color:${color}">
+      <div class="card-block p-3 rounded-xl bg-eng-card border-l-4" style="border-color:${color}">
         <div class="flex justify-between mb-1">
-          <span class="text-sm font-medium">${c.title || '—'}</span>
-          <span class="text-xs text-eng-muted">${timeStr(c.start_time)} – ${timeStr(c.end_time)}</span>
+          <span class="text-xs font-medium">${c.title || '—'}</span>
+          <span class="text-xs text-eng-muted">${timeStr(c.start_time)}</span>
         </div>
-        <div class="text-xs text-eng-muted mb-2">
-          ${c.category}${c.subcategory ? ' · '+c.subcategory : ''} · ${c.confidence ? Math.round(c.confidence*100)+'%' : ''}
-          · batch #${c.batch_id || '?'}
+        <div class="text-xs text-eng-muted mb-1">
+          ${c.category}${c.subcategory ? ' · '+c.subcategory : ''}
         </div>
-        <div class="text-sm text-eng-text/80">${c.summary || ''}</div>
-        ${apps.length ? `<div class="text-xs text-eng-muted mt-2">${apps.join(', ')}</div>` : ''}
+        <div class="text-xs text-eng-text/70">${c.summary || ''}</div>
       </div>
     `;
   }).join('');
 }
+
+// ── Data Quality ────────────────────────────────
 
 async function loadProfile() {
   const today = new Date().toISOString().split('T')[0];
@@ -252,9 +380,240 @@ async function loadProfile() {
   ).join('');
 }
 
+// ── Persona ─────────────────────────────────────
+
+async function loadPersona() {
+  const raw = await fetchJSON('/persona');
+  if (!raw || raw.status === 'no_persona') {
+    document.getElementById('no-persona-banner').classList.remove('hidden');
+    document.getElementById('ps-confidence').textContent = '—';
+    document.getElementById('ps-confidence-msg').textContent = 'No persona yet. Run onboarding or wait for auto-evolve.';
+    return;
+  }
+
+  document.getElementById('no-persona-banner').classList.add('hidden');
+  personaData = raw;
+
+  // Also fetch version info
+  const withMd = await fetchJSON('/persona?format=markdown');
+  if (withMd?.version) {
+    document.getElementById('persona-version').textContent = `v${withMd.version}`;
+  }
+
+  // Confidence
+  const conf = Math.round((raw.confidence || 0) * 100);
+  document.getElementById('ps-confidence').textContent = conf + '%';
+  document.getElementById('ps-confidence-bar').style.width = conf + '%';
+  document.getElementById('ps-confidence-msg').textContent =
+    conf < 30 ? 'Just getting started — keep using your PC.'
+    : conf < 60 ? 'Building understanding — a few more days will sharpen this.'
+    : conf < 80 ? 'Good foundation — persona is becoming reliable.'
+    : 'Strong persona — Mnemosyne knows you well.';
+
+  // Identity
+  const ident = raw.identity || {};
+  document.getElementById('ps-role').textContent = ident.likely_role || ident.role || 'Click to set';
+  document.getElementById('ps-seniority').textContent = ident.seniority || 'Click to set';
+
+  // MBTI
+  const mbti = raw.personality?.mbti || '';
+  document.getElementById('ps-mbti').textContent = mbti || 'Click to set';
+
+  // Summary
+  document.getElementById('ps-summary').textContent = raw.summary || 'No summary yet';
+
+  // Work Style
+  const ws = raw.work_style || {};
+  document.getElementById('ps-work-type').textContent = ws.type || '—';
+  document.getElementById('ps-peak-hours').textContent = ws.peak_hours || '—';
+  document.getElementById('ps-communication').textContent = ws.communication || '—';
+  document.getElementById('ps-focus').textContent = raw.patterns?.focus_level || '—';
+
+  // Interests
+  const interests = [...new Set([
+    ...(raw.interests?.current || []),
+    ...(raw.interests?.inferred || [])
+  ])].filter(Boolean);
+  const intEl = document.getElementById('ps-interests');
+  intEl.innerHTML = interests.length
+    ? interests.map(i => `<span class="px-2 py-1 text-xs rounded-md bg-eng-accent/10 text-eng-accent">${escHtml(i)}</span>`).join('')
+    : '<span class="text-xs text-eng-muted">None yet</span>';
+
+  // Tools
+  const tools = raw.tools?.primary || [];
+  const toolEl = document.getElementById('ps-tools');
+  toolEl.innerHTML = tools.length
+    ? tools.map(t => `<span class="px-2 py-1 text-xs rounded-md bg-white/10 text-eng-text/80">${escHtml(t)}</span>`).join('')
+    : '<span class="text-xs text-eng-muted">Auto-detected from activity</span>';
+
+  // Meta
+  document.getElementById('ps-days-observed').textContent = `Days observed: ${raw.days_observed || raw.date ? 1 : 0}`;
+  document.getElementById('ps-cards-analyzed').textContent = `Cards analyzed: ${raw.card_count || 0}`;
+  document.getElementById('ps-last-evolved').textContent = `Last evolved: ${raw.synthesized_at || raw.created_at || '—'}`;
+
+  // Next evolve estimate (3 days from last)
+  const lastDate = raw.synthesized_at || raw.created_at;
+  if (lastDate) {
+    const next = new Date(new Date(lastDate).getTime() + 3 * 24 * 60 * 60 * 1000);
+    const now = new Date();
+    if (next > now) {
+      const daysLeft = Math.ceil((next - now) / (24 * 60 * 60 * 1000));
+      document.getElementById('ps-next-evolve').textContent = `Next auto-evolve: ~${daysLeft} day${daysLeft > 1 ? 's' : ''}`;
+    } else {
+      document.getElementById('ps-next-evolve').textContent = 'Next auto-evolve: pending (due)';
+    }
+  }
+}
+
+function escHtml(s) {
+  const d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
+
+// ── Inline Editing ──────────────────────────────
+
+function startEdit(el, multiline = false) {
+  if (el.querySelector('input, textarea')) return; // already editing
+
+  const field = el.dataset.field;
+  const currentText = el.textContent.trim();
+  const isPlaceholder = currentText === 'Click to set' || currentText === '—';
+
+  el.classList.add('editable-active');
+
+  if (multiline) {
+    const ta = document.createElement('textarea');
+    ta.className = 'edit-input';
+    ta.rows = 3;
+    ta.value = isPlaceholder ? '' : currentText;
+    ta.onblur = () => finishEdit(el, ta.value, field);
+    ta.onkeydown = (e) => { if (e.key === 'Escape') { ta.blur(); } };
+    el.textContent = '';
+    el.appendChild(ta);
+    ta.focus();
+  } else {
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'edit-input';
+    input.value = isPlaceholder ? '' : currentText;
+    input.onblur = () => finishEdit(el, input.value, field);
+    input.onkeydown = (e) => {
+      if (e.key === 'Enter') input.blur();
+      if (e.key === 'Escape') { input.value = currentText; input.blur(); }
+    };
+    el.textContent = '';
+    el.appendChild(input);
+    input.focus();
+  }
+}
+
+async function finishEdit(el, value, field) {
+  el.classList.remove('editable-active');
+  const trimmed = value.trim();
+  el.textContent = trimmed || 'Click to set';
+
+  if (!trimmed || !personaData) return;
+
+  // Update local persona data
+  const fieldMap = {
+    'role': () => {
+      if (!personaData.identity) personaData.identity = {};
+      personaData.identity.likely_role = trimmed;
+      personaData.identity.role = trimmed;
+    },
+    'seniority': () => {
+      if (!personaData.identity) personaData.identity = {};
+      personaData.identity.seniority = trimmed;
+    },
+    'mbti': () => {
+      if (!personaData.personality) personaData.personality = {};
+      personaData.personality.mbti = trimmed;
+    },
+    'summary': () => { personaData.summary = trimmed; },
+    'work_type': () => {
+      if (!personaData.work_style) personaData.work_style = {};
+      personaData.work_style.type = trimmed;
+    },
+    'peak_hours': () => {
+      if (!personaData.work_style) personaData.work_style = {};
+      personaData.work_style.peak_hours = trimmed;
+    },
+    'communication': () => {
+      if (!personaData.work_style) personaData.work_style = {};
+      personaData.work_style.communication = trimmed;
+    },
+    'focus_level': () => {
+      if (!personaData.patterns) personaData.patterns = {};
+      personaData.patterns.focus_level = trimmed;
+    },
+  };
+
+  if (fieldMap[field]) {
+    fieldMap[field]();
+    personaData.user_edited = true;
+    personaData.last_edited = new Date().toISOString();
+    await savePersona();
+  }
+}
+
+function addInterest() {
+  const input = prompt('Add an interest:');
+  if (!input || !input.trim()) return;
+  if (!personaData) personaData = {};
+  if (!personaData.interests) personaData.interests = {};
+  if (!personaData.interests.current) personaData.interests.current = [];
+  personaData.interests.current.push(input.trim());
+  personaData.user_edited = true;
+  personaData.last_edited = new Date().toISOString();
+
+  // Re-render interests
+  const interests = [...new Set([
+    ...(personaData.interests?.current || []),
+    ...(personaData.interests?.inferred || [])
+  ])].filter(Boolean);
+  document.getElementById('ps-interests').innerHTML = interests.map(i =>
+    `<span class="px-2 py-1 text-xs rounded-md bg-eng-accent/10 text-eng-accent">${escHtml(i)}</span>`
+  ).join('');
+
+  savePersona();
+}
+
+async function savePersona() {
+  const statusEl = document.getElementById('persona-save-status');
+  statusEl.textContent = 'Saving...';
+  statusEl.classList.remove('hidden');
+
+  try {
+    // Convert persona data back to markdown via persona module, then save
+    // We use the direct persona save endpoint with the updated data
+    const r = await fetch(API + '/persona/inline', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(personaData)
+    });
+    if (r.ok) {
+      const result = await r.json();
+      statusEl.textContent = 'Saved';
+      if (result.version) {
+        document.getElementById('persona-version').textContent = `v${result.version}`;
+      }
+    } else {
+      statusEl.textContent = 'Save failed';
+    }
+  } catch (e) {
+    statusEl.textContent = 'Save failed';
+  }
+  setTimeout(() => statusEl.classList.add('hidden'), 2000);
+}
+
+// ── Init ────────────────────────────────────────
+
 (async () => {
-  await Promise.all([loadStats(), loadBatches(), loadProfile()]);
+  await Promise.all([loadStats(), loadBatches(), loadProfile(), loadPersona()]);
   setInterval(() => Promise.all([loadStats(), loadBatches(), loadProfile()]), 30000);
+  // Persona refreshes less frequently (don't overwrite user edits in progress)
+  setInterval(loadPersona, 120000);
 })();
 </script>
 </body>

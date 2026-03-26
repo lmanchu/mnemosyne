@@ -119,6 +119,8 @@ class Handler(BaseHTTPRequestHandler):
             self._api_onboarding_preferences(data)
         elif path == "/api/v1/persona":
             self._api_save_persona(data)
+        elif path == "/api/v1/persona/inline":
+            self._api_save_persona_inline(data)
         else:
             self.send_error(404)
 
@@ -410,6 +412,23 @@ class Handler(BaseHTTPRequestHandler):
 
         confidence = min((existing.get("confidence", 0.5) if existing else 0.5) + 0.1, 0.99)
         pid = storage.save_persona(version, updated, confidence)
+        _json_response(self, {"status": "saved", "version": version, "id": pid})
+
+    def _api_save_persona_inline(self, data):
+        """Save persona data directly from inline editing (JSON in, JSON out)."""
+        conn = storage.get_db()
+        count = conn.execute("SELECT COUNT(*) FROM persona").fetchone()[0]
+        conn.close()
+        version = f"0.{count + 1}.0"
+
+        # Mark as user-edited
+        data["user_edited"] = True
+        data["last_edited"] = datetime.now().isoformat()
+
+        existing = storage.get_latest_persona()
+        confidence = min((existing.get("confidence", 0.5) if existing else 0.5) + 0.05, 0.99)
+
+        pid = storage.save_persona(version, data, confidence)
         _json_response(self, {"status": "saved", "version": version, "id": pid})
 
     def _api_health(self):
