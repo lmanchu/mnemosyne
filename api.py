@@ -19,7 +19,7 @@ import json
 import os
 import threading
 import time
-from datetime import datetime
+from datetime import datetime, timedelta
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from pathlib import Path
 from urllib.parse import urlparse, parse_qs
@@ -155,6 +155,8 @@ class Handler(BaseHTTPRequestHandler):
             self._api_timeline(params)
         elif path == "/api/v1/summary/daily":
             self._api_daily_summary(params)
+        elif path == "/api/v1/summary/weekly":
+            self._api_weekly_summary(params)
         else:
             self.send_error(404)
 
@@ -358,6 +360,21 @@ class Handler(BaseHTTPRequestHandler):
                     "card_count": 0,
                     "message": "No activity cards for this date."
                 })
+
+    def _api_weekly_summary(self, params):
+        # week_start format: YYYY-MM-DD (Monday of the week)
+        week_start = params.get("week", "")
+        if not week_start:
+            today = datetime.now()
+            last_monday = today - timedelta(days=today.weekday() + 7)
+            week_start = last_monday.strftime("%Y-%m-%d")
+        week_end = (datetime.fromisoformat(week_start) + timedelta(days=6)).strftime("%Y-%m-%d")
+        week_key = f"{week_start}__{week_end}"
+        summary = storage.get_daily_summary(week_key)
+        if summary:
+            _json_response(self, summary)
+        else:
+            _json_response(self, {"week": week_start, "summary": None, "message": "No weekly summary yet."})
 
     def _api_engine_stats(self):
         conn = storage.get_db()
