@@ -49,8 +49,14 @@ Return ONLY valid JSON matching this schema (no markdown, no fences):
 }}"""
 
 
+MAX_RETRIES = 3
+RETRY_BACKOFF = [2, 5, 10]  # seconds between retries
+
+
 def _call_gemini(parts: list, temperature: float = 0.2, max_tokens: int = 2048) -> tuple[str, dict]:
-    """Make a Gemini API call. Returns (text, usage_metadata)."""
+    """Make a Gemini API call with retry + exponential backoff. Returns (text, usage_metadata)."""
+    import time
+
     payload = {
         "contents": [{"parts": parts}],
         "generationConfig": {
@@ -60,19 +66,31 @@ def _call_gemini(parts: list, temperature: float = 0.2, max_tokens: int = 2048) 
     }
 
     url = f"{ENDPOINT}?key={GEMINI_API_KEY}"
-    req = urllib.request.Request(
-        url,
-        data=json.dumps(payload).encode(),
-        headers={"Content-Type": "application/json"},
-        method="POST"
-    )
+    last_error = None
 
-    with urllib.request.urlopen(req, timeout=60) as resp:
-        result = json.loads(resp.read())
+    for attempt in range(MAX_RETRIES):
+        try:
+            req = urllib.request.Request(
+                url,
+                data=json.dumps(payload).encode(),
+                headers={"Content-Type": "application/json"},
+                method="POST"
+            )
+            with urllib.request.urlopen(req, timeout=90) as resp:
+                result = json.loads(resp.read())
 
-    text = result["candidates"][0]["content"]["parts"][0]["text"]
-    usage = result.get("usageMetadata", {})
-    return text, usage
+            text = result["candidates"][0]["content"]["parts"][0]["text"]
+            usage = result.get("usageMetadata", {})
+            return text, usage
+
+        except Exception as e:
+            last_error = e
+            if attempt < MAX_RETRIES - 1:
+                wait = RETRY_BACKOFF[attempt]
+                print(f"[Gemini] Attempt {attempt + 1} failed: {e}, retrying in {wait}s...")
+                time.sleep(wait)
+
+    raise last_error
 
 
 def _encode_image(path: Path) -> dict:

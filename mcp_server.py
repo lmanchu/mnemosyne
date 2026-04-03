@@ -9,6 +9,8 @@ Tools:
   - mnemosyne_get_profile: Aggregated user context profile
   - mnemosyne_get_summary: AI-generated day summary
   - mnemosyne_health: System status
+  - mnemosyne_timeline: Chronological activity timeline for a day
+  - mnemosyne_daily_summary: AI-generated narrative daily summary
 
 Resources:
   - mnemosyne://context/now: Auto-injectable current context
@@ -252,6 +254,44 @@ def mnemosyne_health() -> str:
         "gemini_configured": bool(os.environ.get("GEMINI_API_KEY")),
     }
     return json.dumps(result, indent=2, default=str)
+
+
+@mcp.tool()
+def mnemosyne_timeline(date: str = "") -> str:
+    """Get chronological activity timeline for a given day.
+    Returns cards in time order with duration, categories, and summary stats.
+
+    Args:
+        date: Date to query (YYYY-MM-DD). Empty = today.
+    """
+    if not date:
+        date = datetime.now().strftime("%Y-%m-%d")
+    timeline = storage.get_timeline(date)
+    return json.dumps(timeline, indent=2, default=str)
+
+
+@mcp.tool()
+def mnemosyne_daily_summary(date: str = "") -> str:
+    """Get AI-generated daily narrative summary.
+    Returns a prose summary of the user's day based on their ActivityCards.
+
+    Args:
+        date: Date to query (YYYY-MM-DD). Empty = yesterday.
+    """
+    if not date:
+        date = (datetime.now() - timedelta(days=1)).strftime("%Y-%m-%d")
+    summary = storage.get_daily_summary(date)
+    if summary:
+        return json.dumps(summary, indent=2, default=str)
+
+    # Fallback: return stats without narrative
+    timeline = storage.get_timeline(date)
+    return json.dumps({
+        "date": date,
+        "summary": None,
+        "message": "No AI summary generated yet. Will auto-generate overnight.",
+        "stats": timeline["stats"]
+    }, indent=2, default=str)
 
 
 # ── MCP Resource ──────────────────────────────────────────

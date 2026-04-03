@@ -71,27 +71,32 @@ def daemon_loop():
     _do_maintenance()
 
     while running:
-        # Capture + AW metadata (with smart dedup)
+        # Check AFK before capturing — skip entirely if user is idle/locked
         try:
-            path = capture.capture_screenshot()
-            if path is None:
-                # Smart dedup: screen unchanged, skip
+            ctx = aw_bridge.get_current_context()
+            if ctx.get("afk") and ctx.get("afk_duration", 0) > 60:
+                # User has been AFK for >60s, skip capture entirely
                 pass
             else:
-                ts = int(datetime.now().timestamp())
-                ctx = aw_bridge.get_current_context()
-                storage.save_screenshot(
-                    captured_at=ts,
-                    file_path=str(path),
-                    file_size=path.stat().st_size,
-                    active_app=ctx.get("app", ""),
-                    window_title=ctx.get("title", ""),
-                    url=ctx.get("url", ""),
-                    idle_seconds=ctx.get("afk_duration", 0) if ctx.get("afk") else 0
-                )
-                capture_count += 1
-                if capture_count % 6 == 0:
-                    print(f"[{now()}] {capture_count} captures")
+                # Capture + AW metadata (with smart dedup)
+                path = capture.capture_screenshot()
+                if path is None:
+                    # Smart dedup: screen unchanged, skip
+                    pass
+                else:
+                    ts = int(datetime.now().timestamp())
+                    storage.save_screenshot(
+                        captured_at=ts,
+                        file_path=str(path),
+                        file_size=path.stat().st_size,
+                        active_app=ctx.get("app", ""),
+                        window_title=ctx.get("title", ""),
+                        url=ctx.get("url", ""),
+                        idle_seconds=ctx.get("afk_duration", 0) if ctx.get("afk") else 0
+                    )
+                    capture_count += 1
+                    if capture_count % 6 == 0:
+                        print(f"[{now()}] {capture_count} captures")
         except Exception as e:
             print(f"[{now()}] Capture error: {e}")
 
@@ -166,6 +171,11 @@ def _do_analyze():
         print(f"[{now()}] Card #{card_id}: {card.get('category')} — {card.get('title')} ({total_ms}ms)")
     except Exception as e:
         print(f"[{now()}] Analysis failed: {e}")
+        # Mark batch as failed so screenshots get released by maintenance
+        try:
+            storage.update_batch(batch_id, status="failed", error_message=str(e)[:500])
+        except Exception:
+            pass
 
 
 # ── Daily summary generation ─────────────────────
