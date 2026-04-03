@@ -40,6 +40,10 @@ API_PORT = int(os.environ.get("MNEMOSYNE_PORT", "5700"))
 MIN_SCREENSHOTS_PER_BATCH = 3
 PERSONA_EVOLVE_DAYS = int(os.environ.get("MNEMOSYNE_PERSONA_EVOLVE_DAYS", "3"))
 PERSONA_CHECK_INTERVAL = 60 * 60  # check every hour if evolve is due
+CLEANUP_INTERVAL = 60 * 60  # check every hour for stale batches + old screenshots
+BATCH_TIMEOUT_MINUTES = 30  # pending batches older than this get marked failed
+SCREENSHOT_KEEP_DAYS = 3  # delete processed screenshot files after this many days
+MAX_BATCH_SIZE = 50  # cap screenshots per batch to avoid API overload
 
 running = True
 
@@ -60,26 +64,34 @@ def daemon_loop():
     capture_count = 0
     last_batch_time = time.time()
     last_persona_check = time.time()
+    last_cleanup_time = time.time()
     analyze_enabled = bool(os.environ.get("GEMINI_API_KEY"))
 
+    # Run cleanup once at startup
+    _do_maintenance()
+
     while running:
-        # Capture + AW metadata
+        # Capture + AW metadata (with smart dedup)
         try:
             path = capture.capture_screenshot()
-            ts = int(datetime.now().timestamp())
-            ctx = aw_bridge.get_current_context()
-            storage.save_screenshot(
-                captured_at=ts,
-                file_path=str(path),
-                file_size=path.stat().st_size,
-                active_app=ctx.get("app", ""),
-                window_title=ctx.get("title", ""),
-                url=ctx.get("url", ""),
-                idle_seconds=ctx.get("afk_duration", 0) if ctx.get("afk") else 0
-            )
-            capture_count += 1
-            if capture_count % 6 == 0:
-                print(f"[{now()}] {capture_count} captures")
+            if path is None:
+                # Smart dedup: screen unchanged, skip
+                pass
+            else:
+                ts = int(datetime.now().timestamp())
+                ctx = aw_bridge.get_current_context()
+                storage.save_screenshot(
+                    captured_at=ts,
+                    file_path=str(path),
+                    file_size=path.stat().st_size,
+                    active_app=ctx.get("app", ""),
+                    window_title=ctx.get("title", ""),
+                    url=ctx.get("url", ""),
+                    idle_seconds=ctx.get("afk_duration", 0) if ctx.get("afk") else 0
+                )
+                capture_count += 1
+                if capture_count % 6 == 0:
+                    print(f"[{now()}] {capture_count} captures")
         except Exception as e:
             print(f"[{now()}] Capture error: {e}")
 
@@ -88,10 +100,16 @@ def daemon_loop():
             _do_analyze()
             last_batch_time = time.time()
 
-        # Persona auto-evolve check (every hour)
+        # Persona auto-evolve + daily summary check (every hour)
         if analyze_enabled and (time.time() - last_persona_check) >= PERSONA_CHECK_INTERVAL:
+            _maybe_generate_daily_summary()
             _maybe_evolve_persona()
             last_persona_check = time.time()
+
+        # Maintenance: stale batch recovery + screenshot cleanup (every hour)
+        if (time.time() - last_cleanup_time) >= CLEANUP_INTERVAL:
+            _do_maintenance()
+            last_cleanup_time = time.time()
 
         # Sleep in small increments
         for _ in range(CAPTURE_INTERVAL * 10):
@@ -105,10 +123,26 @@ def daemon_loop():
         _do_analyze()
 
 
+def _do_maintenance():
+    """Recover stale batches and clean up old screenshot files."""
+    recovered = storage.recover_stale_batches(timeout_minutes=BATCH_TIMEOUT_MINUTES)
+    if recovered:
+        print(f"[{now()}] Maintenance: recovered {recovered} stale batches")
+
+    deleted, mb_freed = storage.cleanup_processed_screenshots(keep_days=SCREENSHOT_KEEP_DAYS)
+    if deleted:
+        print(f"[{now()}] Maintenance: deleted {deleted} old screenshots, freed {mb_freed:.1f} MB")
+
+
 def _do_analyze():
     screenshots = storage.get_unbatched_screenshots()
     if len(screenshots) < MIN_SCREENSHOTS_PER_BATCH:
         return
+
+    # Cap batch size to avoid API overload — process oldest first
+    if len(screenshots) > MAX_BATCH_SIZE:
+        screenshots = screenshots[:MAX_BATCH_SIZE]
+
     try:
         ids = [s["id"] for s in screenshots]
         start_ts = min(s["captured_at"] for s in screenshots)
@@ -132,6 +166,70 @@ def _do_analyze():
         print(f"[{now()}] Card #{card_id}: {card.get('category')} — {card.get('title')} ({total_ms}ms)")
     except Exception as e:
         print(f"[{now()}] Analysis failed: {e}")
+
+
+# ── Daily summary generation ─────────────────────
+
+DAILY_SUMMARY_PROMPT = """You are summarizing a person's computer activity for {date}.
+They had {card_count} activity sessions. Here are the ActivityCards:
+
+{cards_text}
+
+Write a concise daily summary (3-5 paragraphs) that:
+1. Describes the overall narrative of their day (what they accomplished, what they focused on)
+2. Notes any context switches or productivity patterns
+3. Highlights the most significant work done
+
+Write in second person ("You spent the morning..."). Be specific about apps, projects, and tasks.
+Keep it under 300 words. Do NOT use bullet points — write flowing prose."""
+
+
+def _maybe_generate_daily_summary():
+    """Generate summary for yesterday if not already done."""
+    from datetime import timedelta
+    yesterday = (datetime.now() - timedelta(days=1)).strftime("%Y-%m-%d")
+
+    # Skip if already generated
+    existing = storage.get_daily_summary(yesterday)
+    if existing:
+        return
+
+    # Get yesterday's cards
+    timeline = storage.get_timeline(yesterday)
+    cards = timeline["cards"]
+    if len(cards) < 2:
+        return  # Not enough data
+
+    cards_text = "\n\n".join(
+        f"[{c['start_time']} - {c['end_time']}] {c.get('category','?')}: {c.get('title','?')}\n{c.get('summary','')}"
+        for c in cards
+    )
+
+    prompt = DAILY_SUMMARY_PROMPT.format(
+        date=yesterday,
+        card_count=len(cards),
+        cards_text=cards_text
+    )
+
+    try:
+        t0 = time.perf_counter()
+        text, usage = gemini._call_gemini([{"text": prompt}], temperature=0.3, max_tokens=1024)
+        elapsed = (time.perf_counter() - t0) * 1000
+
+        stats = timeline["stats"]
+        storage.save_daily_summary(
+            date=yesterday,
+            summary=text.strip(),
+            card_count=len(cards),
+            categories=list(stats["categories"].keys()),
+            top_apps=stats["top_apps"],
+            active_hours=stats["active_hours"],
+            provider="gemini",
+            model=gemini.MODEL
+        )
+        print(f"[{now()}] Daily summary for {yesterday}: {len(cards)} cards, {elapsed:.0f}ms")
+    except Exception as e:
+        print(f"[{now()}] Daily summary failed: {e}")
 
 
 # ── Persona auto-evolve ──────────────────────────

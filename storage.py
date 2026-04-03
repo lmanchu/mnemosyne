@@ -86,6 +86,19 @@ def _ensure_schema(conn: sqlite3.Connection):
             created_at TEXT DEFAULT (datetime('now'))
         );
 
+        CREATE TABLE IF NOT EXISTS daily_summaries (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            date TEXT NOT NULL UNIQUE,
+            summary TEXT NOT NULL,
+            card_count INTEGER DEFAULT 0,
+            categories TEXT,
+            top_apps TEXT,
+            active_hours REAL DEFAULT 0.0,
+            provider TEXT,
+            model TEXT,
+            created_at TEXT DEFAULT (datetime('now'))
+        );
+
         CREATE INDEX IF NOT EXISTS idx_screenshots_batch ON screenshots(batch_id);
         CREATE INDEX IF NOT EXISTS idx_screenshots_captured ON screenshots(captured_at);
         CREATE INDEX IF NOT EXISTS idx_cards_time ON cards(start_time, end_time);
@@ -266,6 +279,187 @@ def get_latest_persona() -> dict | None:
     except (json.JSONDecodeError, TypeError):
         pass
     return d
+
+
+def save_daily_summary(date: str, summary: str, card_count: int,
+                      categories: list[str], top_apps: list[str],
+                      active_hours: float, provider: str = "", model: str = "") -> int:
+    conn = get_db()
+    conn.execute(
+        """INSERT OR REPLACE INTO daily_summaries
+           (date, summary, card_count, categories, top_apps, active_hours, provider, model)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+        (date, summary, card_count, json.dumps(categories), json.dumps(top_apps),
+         active_hours, provider, model)
+    )
+    conn.commit()
+    rid = conn.execute("SELECT id FROM daily_summaries WHERE date = ?", (date,)).fetchone()[0]
+    conn.close()
+    return rid
+
+
+def get_daily_summary(date: str) -> dict | None:
+    conn = get_db()
+    row = conn.execute(
+        "SELECT * FROM daily_summaries WHERE date = ?", (date,)
+    ).fetchone()
+    conn.close()
+    if not row:
+        return None
+    d = dict(row)
+    for field in ("categories", "top_apps"):
+        if d.get(field):
+            try:
+                d[field] = json.loads(d[field])
+            except (json.JSONDecodeError, TypeError):
+                pass
+    return d
+
+
+def get_timeline(date: str) -> dict:
+    """Get chronological activity timeline for a date.
+
+    Returns: {date, cards: [...], stats: {card_count, categories, top_apps, active_hours}}
+    """
+    conn = get_db()
+    rows = conn.execute(
+        "SELECT * FROM cards WHERE start_time LIKE ? ORDER BY start_time ASC",
+        (f"{date}%",)
+    ).fetchall()
+    conn.close()
+
+    cards = []
+    all_apps = {}
+    categories = {}
+    total_seconds = 0
+
+    for r in rows:
+        d = dict(r)
+        for field in ("apps_used", "urls_visited", "distractions"):
+            if d.get(field):
+                try:
+                    d[field] = json.loads(d[field])
+                except (json.JSONDecodeError, TypeError):
+                    pass
+
+        # Calculate duration from start_time to end_time
+        try:
+            st = datetime.fromisoformat(d["start_time"])
+            et = datetime.fromisoformat(d["end_time"])
+            d["duration_minutes"] = round((et - st).total_seconds() / 60, 1)
+            total_seconds += (et - st).total_seconds()
+        except (ValueError, TypeError):
+            d["duration_minutes"] = 0
+
+        # Aggregate stats
+        cat = d.get("category", "Other")
+        categories[cat] = categories.get(cat, 0) + 1
+        for app in (d.get("apps_used") or []):
+            all_apps[app] = all_apps.get(app, 0) + 1
+
+        cards.append(d)
+
+    # Sort apps by frequency
+    top_apps = sorted(all_apps.keys(), key=lambda a: all_apps[a], reverse=True)[:10]
+
+    return {
+        "date": date,
+        "cards": cards,
+        "stats": {
+            "card_count": len(cards),
+            "categories": dict(categories),
+            "top_apps": top_apps,
+            "active_hours": round(total_seconds / 3600, 1),
+        }
+    }
+
+
+def recover_stale_batches(timeout_minutes: int = 30) -> int:
+    """Mark pending batches older than timeout as failed, release their screenshots.
+
+    Returns number of batches recovered.
+    """
+    conn = get_db()
+    cutoff = datetime.now().timestamp() - timeout_minutes * 60
+    cutoff_iso = datetime.fromtimestamp(cutoff).isoformat()
+
+    # Find stale pending batches
+    stale = conn.execute(
+        "SELECT id FROM batches WHERE status = 'pending' AND created_at < ?",
+        (cutoff_iso,)
+    ).fetchall()
+
+    if not stale:
+        conn.close()
+        return 0
+
+    stale_ids = [r["id"] for r in stale]
+    placeholders = ",".join("?" * len(stale_ids))
+
+    # Release screenshots back to unbatched pool
+    conn.execute(
+        f"UPDATE screenshots SET batch_id = NULL WHERE batch_id IN ({placeholders})",
+        stale_ids
+    )
+
+    # Mark batches as failed
+    conn.execute(
+        f"UPDATE batches SET status = 'failed', error_message = 'timeout: stale pending batch recovered' "
+        f"WHERE id IN ({placeholders})",
+        stale_ids
+    )
+
+    conn.commit()
+    conn.close()
+    return len(stale_ids)
+
+
+def cleanup_processed_screenshots(keep_days: int = 3) -> tuple[int, float]:
+    """Delete screenshot files for completed batches older than keep_days.
+
+    Marks DB records as is_deleted=1 but keeps the rows.
+    Returns (files_deleted, mb_freed).
+    """
+    conn = get_db()
+    cutoff = datetime.now().timestamp() - keep_days * 86400
+    cutoff_iso = datetime.fromtimestamp(cutoff).isoformat()
+
+    # Find screenshots in completed batches that are old enough and not yet deleted
+    rows = conn.execute(
+        """SELECT s.id, s.file_path, s.file_size FROM screenshots s
+           JOIN batches b ON s.batch_id = b.id
+           WHERE b.status = 'completed'
+             AND s.is_deleted = 0
+             AND b.created_at < ?""",
+        (cutoff_iso,)
+    ).fetchall()
+
+    deleted = 0
+    freed_bytes = 0
+    for r in rows:
+        p = Path(r["file_path"])
+        if p.exists():
+            try:
+                freed_bytes += r["file_size"] or 0
+                p.unlink()
+                deleted += 1
+            except OSError:
+                continue
+
+    if deleted > 0:
+        ids = [r["id"] for r in rows]
+        # Mark in chunks to avoid SQL variable limit
+        for i in range(0, len(ids), 500):
+            chunk = ids[i:i + 500]
+            placeholders = ",".join("?" * len(chunk))
+            conn.execute(
+                f"UPDATE screenshots SET is_deleted = 1 WHERE id IN ({placeholders})",
+                chunk
+            )
+        conn.commit()
+
+    conn.close()
+    return deleted, freed_bytes / (1024 * 1024)
 
 
 if __name__ == "__main__":

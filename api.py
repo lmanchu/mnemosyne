@@ -151,6 +151,10 @@ class Handler(BaseHTTPRequestHandler):
             self._api_get_persona(params)
         elif path == "/persona":
             self._serve_file(PERSONA_EDITOR_PATH, "text/html")
+        elif path == "/api/v1/timeline":
+            self._api_timeline(params)
+        elif path == "/api/v1/summary/daily":
+            self._api_daily_summary(params)
         else:
             self.send_error(404)
 
@@ -326,6 +330,35 @@ class Handler(BaseHTTPRequestHandler):
             "progress_pct": min(100, int(recent / target * 100))
         })
 
+    def _api_timeline(self, params):
+        date = params.get("date", datetime.now().strftime("%Y-%m-%d"))
+        timeline = storage.get_timeline(date)
+        _json_response(self, timeline)
+
+    def _api_daily_summary(self, params):
+        date = params.get("date", datetime.now().strftime("%Y-%m-%d"))
+        summary = storage.get_daily_summary(date)
+        if summary:
+            _json_response(self, summary)
+        else:
+            # Try to generate on-demand if cards exist
+            timeline = storage.get_timeline(date)
+            if timeline["stats"]["card_count"] > 0:
+                _json_response(self, {
+                    "date": date,
+                    "summary": None,
+                    "card_count": timeline["stats"]["card_count"],
+                    "message": "Summary not yet generated. Will be auto-generated overnight.",
+                    "stats": timeline["stats"]
+                })
+            else:
+                _json_response(self, {
+                    "date": date,
+                    "summary": None,
+                    "card_count": 0,
+                    "message": "No activity cards for this date."
+                })
+
     def _api_engine_stats(self):
         conn = storage.get_db()
         s_total = conn.execute("SELECT COUNT(*) FROM screenshots").fetchone()[0]
@@ -348,7 +381,8 @@ class Handler(BaseHTTPRequestHandler):
         storage_quota_gb = float(os.environ.get("MNEMOSYNE_STORAGE_QUOTA_GB", "10"))
 
         last_cap_ts = latest_capture[0] if latest_capture else 0
-        daemon_active = (int(datetime.now().timestamp()) - last_cap_ts) < cap_interval * 3
+        # With smart dedup, captures may be sparse — use 10x interval as active threshold
+        daemon_active = (int(datetime.now().timestamp()) - last_cap_ts) < cap_interval * 10
 
         _json_response(self, {
             "screenshots": {"total": s_total, "unbatched": s_unbatched},
