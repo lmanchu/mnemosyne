@@ -26,6 +26,8 @@ from pathlib import Path
 from mcp.server.fastmcp import FastMCP
 
 import storage
+import dayflow_bridge
+import context_fragment
 
 # ── Server setup ──────────────────────────────────────────
 
@@ -68,33 +70,8 @@ def start_capture():
 # ── Helper: build system prompt fragment ──────────────────
 
 def _build_system_prompt_fragment(cards: list[dict]) -> str:
-    if not cards:
-        return "No recent activity data available."
-
-    latest = cards[0]
-    lines = [
-        "You are assisting a user who is currently:",
-        f"- Activity: {latest.get('title', 'Unknown')}",
-        f"- Category: {latest.get('category', 'Unknown')}",
-    ]
-
-    apps = latest.get("apps_used", [])
-    if isinstance(apps, str):
-        try:
-            apps = json.loads(apps)
-        except (json.JSONDecodeError, TypeError):
-            apps = []
-    if apps:
-        lines.append(f"- Apps: {', '.join(apps)}")
-
-    if len(cards) > 1:
-        categories = [c.get("category", "") for c in cards[:5] if c.get("category")]
-        if categories:
-            lines.append(f"- Recent focus: {', '.join(dict.fromkeys(categories))}")
-
-    lines.append("")
-    lines.append("Adapt your responses to their current context.")
-    return "\n".join(lines)
+    """Delegate to shared builder so MCP + REST stay in sync (persona + activity)."""
+    return context_fragment.build_fragment(cards, storage.get_latest_persona())
 
 
 def _build_profile(cards: list[dict]) -> dict:
@@ -143,49 +120,67 @@ def _build_profile(cards: list[dict]) -> dict:
 
 # ── MCP Tools ─────────────────────────────────────────────
 
+def _load_cards(date: str | None = None, category: str | None = None, limit: int = 20) -> list[dict]:
+    """Load cards, preferring Dayflow (months of history) over Mnemosyne's own store."""
+    cards = dayflow_bridge.get_cards(limit=limit, date=date, category=category)
+    if cards:
+        return cards
+    cards = storage.get_cards(date=date if date else None, limit=limit)
+    if category:
+        cards = [c for c in cards if (c.get("category") or "").lower() == category.lower()]
+    return cards
+
+
 @mcp.tool()
 def mnemosyne_context_now() -> str:
     """Get the user's current activity context and a system prompt fragment.
     Call this before each AI interaction to personalize responses.
-    Returns current activity, recent cards, and a ready-to-use system prompt fragment."""
-    cards = storage.get_cards(limit=5)
+    Returns current activity, recent cards, and a ready-to-use system prompt fragment.
+    Data source: Dayflow timeline_cards (months of history) if available, else Mnemosyne store."""
+    cards = _load_cards(limit=5)
     fragment = _build_system_prompt_fragment(cards)
 
     result = {
         "current": cards[0] if cards else None,
         "recent_cards_count": len(cards),
-        "system_prompt_fragment": fragment
+        "system_prompt_fragment": fragment,
+        "source": cards[0].get("source") if cards else None,
     }
     return json.dumps(result, indent=2, default=str)
 
 
 @mcp.tool()
 def mnemosyne_get_cards(date: str = "", category: str = "", limit: int = 20) -> str:
-    """Query ActivityCards. Each card represents a 15-minute block of user activity.
+    """Query ActivityCards — each card is an LLM-summarized block of user screen activity.
+    Back-end: Dayflow's timeline_cards when available (months of history, 15-60 min blocks).
 
     Args:
-        date: Filter by date (YYYY-MM-DD format). Empty = all dates.
-        category: Filter by category (Development, Communication, Research, etc). Empty = all.
+        date: Filter by date (YYYY-MM-DD format). Empty = latest regardless of date.
+        category: Filter by category (Work, Personal, Communication, etc). Empty = all.
         limit: Max cards to return (default 20).
     """
-    cards = storage.get_cards(date=date if date else None, limit=limit)
-    if category:
-        cards = [c for c in cards if c.get("category", "").lower() == category.lower()]
+    cards = _load_cards(
+        date=date if date else None,
+        category=category if category else None,
+        limit=limit,
+    )
     return json.dumps(cards, indent=2, default=str)
 
 
 @mcp.tool()
 def mnemosyne_get_profile(date: str = "") -> str:
-    """Get aggregated user context profile — category breakdown, apps used, patterns.
+    """Get aggregated user context profile for a day — category breakdown, apps used.
+    Back-end: Dayflow timeline_cards when available.
 
     Args:
         date: Date to profile (YYYY-MM-DD). Empty = today.
     """
     if not date:
         date = datetime.now().strftime("%Y-%m-%d")
-    cards = storage.get_cards(date=date, limit=200)
+    cards = _load_cards(date=date, limit=200)
     profile = _build_profile(cards)
     profile["date"] = date
+    profile["source"] = cards[0].get("source") if cards else None
     return json.dumps(profile, indent=2, default=str)
 
 
@@ -259,13 +254,17 @@ def mnemosyne_health() -> str:
 @mcp.tool()
 def mnemosyne_timeline(date: str = "") -> str:
     """Get chronological activity timeline for a given day.
-    Returns cards in time order with duration, categories, and summary stats.
+    Returns cards in time order with category counts and source.
+    Back-end: Dayflow timeline_cards when available.
 
     Args:
         date: Date to query (YYYY-MM-DD). Empty = today.
     """
     if not date:
         date = datetime.now().strftime("%Y-%m-%d")
+    if dayflow_bridge.is_available():
+        timeline = dayflow_bridge.get_timeline(date)
+        return json.dumps(timeline, indent=2, default=str)
     timeline = storage.get_timeline(date)
     return json.dumps(timeline, indent=2, default=str)
 

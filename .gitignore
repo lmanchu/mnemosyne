@@ -41,3 +41,4 @@ context.db
 .venv/
 __pycache__/
 *.pyc
+mnemosyne.db

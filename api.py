@@ -26,9 +26,16 @@ from urllib.parse import urlparse, parse_qs
 
 import storage
 import aw_bridge
+import dayflow_bridge
+import context_fragment
 
 HOST = "127.0.0.1"
 PORT = int(os.environ.get("MNEMOSYNE_PORT", "5700"))
+# Module-level state for the onboarding seed capture run. Updated by POST
+# /api/v1/onboarding/seed and read by GET /api/v1/onboarding/seed/status so
+# the UI progress bar reflects captures since the current run's trigger.
+SEED_STARTED_AT: int | None = None
+SEED_TARGET: int = 6
 DASHBOARD_PATH = Path(__file__).parent / "dashboard.html"
 ONBOARDING_PATH = Path(__file__).parent / "onboarding.html"
 PERSONA_EDITOR_PATH = Path(__file__).parent / "persona-editor.html"
@@ -45,22 +52,7 @@ def _json_response(handler, data, status=200):
 
 
 def _build_system_prompt_fragment(cards):
-    if not cards:
-        return "No recent activity data available."
-    latest = cards[0]
-    lines = [
-        "You are assisting a user who is currently:",
-        f"- Activity: {latest.get('title', 'Unknown')}",
-        f"- Category: {latest.get('category', 'Unknown')}",
-    ]
-    apps = latest.get("apps_used", [])
-    if isinstance(apps, str):
-        try: apps = json.loads(apps)
-        except: apps = []
-    if apps:
-        lines.append(f"- Apps: {', '.join(apps)}")
-    lines.append("\nAdapt your responses to their current context.")
-    return "\n".join(lines)
+    return context_fragment.build_fragment(cards, storage.get_latest_persona())
 
 
 def _build_profile(cards, date):
@@ -149,7 +141,9 @@ class Handler(BaseHTTPRequestHandler):
             self._api_engine_stats()
         elif path == "/api/v1/persona":
             self._api_get_persona(params)
-        elif path == "/persona":
+        elif path == "/api/v1/persona/status":
+            self._api_persona_status()
+        elif path == "/persona" or path == "/persona-editor":
             self._serve_file(PERSONA_EDITOR_PATH, "text/html")
         elif path == "/api/v1/timeline":
             self._api_timeline(params)
@@ -182,7 +176,11 @@ class Handler(BaseHTTPRequestHandler):
         self._serve_file(DASHBOARD_PATH, "text/html")
 
     def _api_context_now(self):
-        cards = storage.get_cards(limit=5)
+        # Prefer Dayflow — already productionized screen timeline with months
+        # of history. Fall back to Mnemosyne's own cards if Dayflow absent.
+        cards = dayflow_bridge.get_cards(limit=5)
+        if not cards:
+            cards = storage.get_cards(limit=5)
         _json_response(self, {
             "current": cards[0] if cards else None,
             "recent_cards_count": len(cards),
@@ -227,6 +225,12 @@ class Handler(BaseHTTPRequestHandler):
         count = data.get("count", 6)
         interval = data.get("interval", 10)
 
+        # Stamp the trigger time so _api_seed_status can count absolute progress
+        # against this run rather than a sliding window that eats old captures.
+        global SEED_STARTED_AT, SEED_TARGET
+        SEED_STARTED_AT = int(datetime.now().timestamp())
+        SEED_TARGET = count
+
         def _capture_in_bg():
             import capture
             results = []
@@ -234,7 +238,12 @@ class Handler(BaseHTTPRequestHandler):
                 if i > 0:
                     time.sleep(interval)
                 try:
-                    path = capture.capture_screenshot()
+                    # force=True so onboarding never gets starved by dedup when
+                    # the user is staring at the static wizard page.
+                    path = capture.capture_screenshot(force=True)
+                    if path is None:
+                        results.append({"error": "capture returned None"})
+                        continue
                     ts = int(datetime.now().timestamp())
                     ctx = aw_bridge.get_current_context()
                     sid = storage.save_screenshot(
@@ -316,17 +325,22 @@ class Handler(BaseHTTPRequestHandler):
         _json_response(self, {"status": "saved", "step": "preferences"})
 
     def _api_seed_status(self):
+        # Count absolute progress since the most recent seed trigger — the old
+        # sliding-window approach let early captures fall out and made the UI
+        # progress decrease over time.
         conn = storage.get_db()
-        now_ts = int(datetime.now().timestamp())
+        target = SEED_TARGET or 6
+        since_ts = SEED_STARTED_AT or (int(datetime.now().timestamp()) - 90)
         recent = conn.execute(
-            "SELECT COUNT(*) FROM screenshots WHERE captured_at > ?", (now_ts - 70,)
+            "SELECT COUNT(*) FROM screenshots WHERE captured_at >= ?",
+            (since_ts,),
         ).fetchone()[0]
         total = conn.execute("SELECT COUNT(*) FROM screenshots").fetchone()[0]
         conn.close()
-        target = 6
         _json_response(self, {
             "total_screenshots": total,
-            "recent_70s": recent,
+            "recent_70s": recent,  # legacy key kept so onboarding.html needs no change
+            "seed_started_at": SEED_STARTED_AT,
             "seed_target": target,
             "complete": recent >= target,
             "progress_pct": min(100, int(recent / target * 100))
@@ -444,6 +458,24 @@ class Handler(BaseHTTPRequestHandler):
             _json_response(self, {"markdown": md, "version": p.get("version") if p else None})
         else:
             _json_response(self, p.get("data", {}) if p else {"status": "no_persona"})
+
+    def _api_persona_status(self):
+        """Lightweight status check for UI — no persona body, just config state."""
+        p = storage.get_latest_persona()
+        if not p:
+            _json_response(self, {"configured": False})
+            return
+        data = p.get("data", {})
+        if isinstance(data, str):
+            try: data = json.loads(data)
+            except: data = {}
+        _json_response(self, {
+            "configured": True,
+            "version": p.get("version"),
+            "confidence": p.get("confidence"),
+            "updated_at": p.get("created_at"),
+            "summary": (data.get("summary") or "")[:200],
+        })
 
     def _api_save_persona(self, data):
         import persona as persona_mod

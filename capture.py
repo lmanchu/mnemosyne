@@ -37,8 +37,13 @@ def _pixel_diff(a: bytes, b: bytes) -> float:
     return sum(abs(x - y) for x, y in zip(a, b)) / len(a)
 
 
-def capture_screenshot() -> Path | None:
+def capture_screenshot(force: bool = False) -> Path | None:
     """Capture primary monitor, scale to 1080p, save as JPEG.
+
+    Args:
+        force: Skip the dedup check and always save. Use for onboarding
+            seeding where the UI blocks on a static page that would
+            otherwise make every capture look identical.
 
     Returns None if the screen hasn't changed (smart dedup).
     Returns the file path if saved.
@@ -56,9 +61,9 @@ def capture_screenshot() -> Path | None:
         new_size = (int(img.width * ratio), TARGET_HEIGHT)
         img = img.resize(new_size, Image.LANCZOS)
 
-    # Smart dedup check
+    # Smart dedup check (skipped when force=True)
     current_thumb = _get_thumb(img)
-    if _last_thumb is not None:
+    if not force and _last_thumb is not None:
         diff = _pixel_diff(current_thumb, _last_thumb)
         if diff < _DIFF_THRESHOLD:
             _same_count += 1
