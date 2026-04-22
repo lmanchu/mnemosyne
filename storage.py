@@ -10,6 +10,13 @@ from pathlib import Path
 
 DB_PATH = Path.home() / ".mnemosyne" / "context.db"
 
+# Phase 2 CAE migration: persona writes also land in irisgo-hermes' cae.db
+# so the Rust chat path can read persona without a sidecar round-trip.
+# Schema (id/version/data/confidence/created_at) matches mnemosyne's persona
+# table exactly — see cae-core/src/storage.rs migrate(). Read-only consumers
+# (synthesizer, editor) keep using mnemosyne.db; only writes are mirrored.
+CAE_DB_PATH = Path.home() / ".irisgo" / "cae.db"
+
 
 def get_db() -> sqlite3.Connection:
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
@@ -262,7 +269,34 @@ def save_persona(version: str, data: dict, confidence: float) -> int:
     )
     conn.commit()
     conn.close()
-    return cur.lastrowid
+    rowid = cur.lastrowid
+    _mirror_persona_to_cae(version, data, confidence)
+    return rowid
+
+
+def _mirror_persona_to_cae(version: str, data: dict, confidence: float) -> None:
+    """Best-effort dual-write into irisgo-hermes' cae.db.
+
+    Skips silently if the file doesn't exist (IrisGo not installed) or
+    the write fails (table missing, locked, schema drift). Mnemosyne's
+    own write must never fail because of this — it's a cache for the
+    Rust chat path, not the source of truth.
+    """
+    if not CAE_DB_PATH.exists():
+        return
+    try:
+        conn = sqlite3.connect(str(CAE_DB_PATH), timeout=2.0)
+        try:
+            conn.execute(
+                "INSERT INTO persona (version, data, confidence) VALUES (?, ?, ?)",
+                (version, json.dumps(data), confidence),
+            )
+            conn.commit()
+        finally:
+            conn.close()
+    except sqlite3.Error as e:
+        # Don't propagate — this is a mirror, not the primary path.
+        print(f"[storage] cae.db persona mirror skipped: {e}")
 
 
 def get_latest_persona() -> dict | None:
