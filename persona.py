@@ -362,78 +362,130 @@ def to_markdown(persona_row: dict = None) -> str:
     return "\n".join(lines)
 
 
+_PLACEHOLDERS = {
+    "_unknown_", "_not yet determined_", "_none yet_",
+    "_paste url_", "_paste @handle_", "_paste username_",
+}
+
+
+def _parse_value(line: str, prefix: str) -> str | None:
+    """Strip a `prefix` off `line` and return the trimmed value, or None
+    if it's missing / a placeholder. Centralises the placeholder check
+    so each scalar field doesn't repeat the same guard."""
+    if not line.startswith(prefix):
+        return None
+    val = line.split(":", 1)[1].strip()
+    if not val or val.lower() in _PLACEHOLDERS:
+        return None
+    return val
+
+
+def _parse_list(val: str) -> list[str]:
+    """Parse 'a, b, c' from `to_markdown`'s list serialisation. Empty
+    items are dropped so 'a, , b' doesn't smuggle in blanks."""
+    return [x.strip() for x in val.split(",") if x.strip()]
+
+
 def from_markdown(md: str, existing_data: dict = None) -> dict:
-    """Parse user-edited markdown back into persona data. Preserves fields user didn't edit."""
+    """Parse user-edited markdown back into persona data. Preserves fields user didn't edit.
+
+    Scope: every field `to_markdown()` writes as user-editable should
+    round-trip here. Synthesizer-generated fields (summary, activity
+    distribution) are intentionally left to the daemon — the editor
+    surfaces them as context but they aren't intended for hand-editing.
+    """
     data = existing_data.copy() if existing_data else {}
+    lines = [l.strip() for l in md.split("\n")]
 
-    # Extract identity
-    for line in md.split("\n"):
-        line = line.strip()
-        if line.startswith("- **Role**:"):
-            val = line.split(":", 1)[1].strip()
-            if val and not val.startswith("_"):
-                data.setdefault("identity", {})["likely_role"] = val
-                data.setdefault("identity", {})["role"] = val
-        elif line.startswith("- **Seniority**:"):
-            val = line.split(":", 1)[1].strip()
-            if val and not val.startswith("_"):
-                data.setdefault("identity", {})["seniority"] = val
+    # Identity ---------------------------------------------------------
+    for line in lines:
+        val = _parse_value(line, "- **Role**:")
+        if val:
+            data.setdefault("identity", {})["likely_role"] = val
+            data.setdefault("identity", {})["role"] = val
+        val = _parse_value(line, "- **Seniority**:")
+        if val:
+            data.setdefault("identity", {})["seniority"] = val
 
-    # Extract social profiles from markdown
-    social = {}
-    for line in md.split("\n"):
-        line = line.strip()
-        if line.startswith("- **LinkedIn**:"):
-            val = line.split(":", 1)[1].strip()
-            if val and val != "_paste URL_":
-                social["linkedin"] = val
-        elif line.startswith("- **Twitter/X**:"):
-            val = line.split(":", 1)[1].strip()
-            if val and val != "_paste @handle_":
-                social["twitter"] = val
-        elif line.startswith("- **Instagram**:"):
-            val = line.split(":", 1)[1].strip()
-            if val and val != "_paste @handle_":
-                social["instagram"] = val
-        elif line.startswith("- **Facebook**:"):
-            val = line.split(":", 1)[1].strip()
-            if val and val != "_paste URL_":
-                social["facebook"] = val
-        elif line.startswith("- **Medium/Blog**:"):
-            val = line.split(":", 1)[1].strip()
-            if val and val != "_paste URL_":
-                social["blog"] = val
-        elif line.startswith("- **GitHub**:"):
-            val = line.split(":", 1)[1].strip()
-            if val and val != "_paste username_":
-                social["github"] = val
+    # Work Style -------------------------------------------------------
+    # All four come from `to_markdown` as `- **<Field>**: value` bullets
+    # under the `## Work Style` header. We don't bother scoping by
+    # header — each prefix is unique enough across the document that
+    # collisions are unlikely; if a user re-uses the wording in My Notes
+    # we still write the right field.
+    for line in lines:
+        if val := _parse_value(line, "- **Type**:"):
+            data.setdefault("work_style", {})["type"] = val
+        if val := _parse_value(line, "- **Peak hours**:"):
+            data.setdefault("work_style", {})["peak_hours"] = val
+        if val := _parse_value(line, "- **Communication**:"):
+            data.setdefault("work_style", {})["communication"] = val
+        if val := _parse_value(line, "- **Context switches**:"):
+            data.setdefault("work_style", {})["context_switches"] = val
+
+    # Tools ------------------------------------------------------------
+    # `**Primary**: app1, app2` — note no leading "- " (matches to_markdown).
+    for line in lines:
+        if val := _parse_value(line, "**Primary**:"):
+            data.setdefault("tools", {})["primary"] = _parse_list(val)
+        if val := _parse_value(line, "**Secondary**:"):
+            data.setdefault("tools", {})["secondary"] = _parse_list(val)
+
+    # Interests --------------------------------------------------------
+    for line in lines:
+        if val := _parse_value(line, "**Current**:"):
+            data.setdefault("interests", {})["current"] = _parse_list(val)
+        if val := _parse_value(line, "**Inferred**:"):
+            data.setdefault("interests", {})["inferred"] = _parse_list(val)
+
+    # Social profiles -------------------------------------------------
+    social_map = {
+        "- **LinkedIn**:": "linkedin",
+        "- **Twitter/X**:": "twitter",
+        "- **Instagram**:": "instagram",
+        "- **Facebook**:": "facebook",
+        "- **Medium/Blog**:": "blog",
+        "- **GitHub**:": "github",
+    }
+    social: dict[str, str] = {}
+    for line in lines:
+        for prefix, key in social_map.items():
+            if val := _parse_value(line, prefix):
+                social[key] = val
     if social:
         data["social_profiles"] = social
 
-    # Extract entertainment
-    entertainment = {}
+    # Entertainment ----------------------------------------------------
+    entertainment: dict[str, list[str]] = {}
     for cat in ["Anime", "Movies", "Tv Shows", "Books", "Games", "Music", "Hobbies"]:
-        for line in md.split("\n"):
-            if line.strip().startswith(f"**{cat}**:"):
-                val = line.split(":", 1)[1].strip()
-                if val and val != "_none yet_":
-                    key = cat.lower().replace(" ", "_")
-                    entertainment[key] = [x.strip() for x in val.split(",")]
+        for line in lines:
+            if val := _parse_value(line, f"**{cat}**:"):
+                key = cat.lower().replace(" ", "_")
+                entertainment[key] = _parse_list(val)
     if entertainment:
         data["entertainment"] = entertainment
 
-    # Extract MBTI
-    for line in md.split("\n"):
-        if line.strip().startswith("- **MBTI**:"):
-            val = line.split(":", 1)[1].strip()
-            if val and val != "_unknown_":
-                data.setdefault("personality", {})["mbti"] = val
+    # Personality + Patterns ------------------------------------------
+    # MBTI lives under personality; focus_level / distractions / work_life
+    # render alongside it but belong to patterns (they're synthesised
+    # signals the user can override).
+    for line in lines:
+        if val := _parse_value(line, "- **MBTI**:"):
+            data.setdefault("personality", {})["mbti"] = val
+        if val := _parse_value(line, "- **Focus level**:"):
+            data.setdefault("patterns", {})["focus_level"] = val
+        if val := _parse_value(line, "- **Distractions**:"):
+            data.setdefault("patterns", {})["distractions"] = val
+        if val := _parse_value(line, "- **Work/life**:"):
+            data.setdefault("patterns", {})["work_life"] = val
 
-    # Extract custom notes (everything after "## My Notes")
+    # Custom notes -----------------------------------------------------
     if "## My Notes" in md:
         notes_section = md.split("## My Notes")[1].strip()
-        # Remove the instruction line
-        notes_lines = [l for l in notes_section.split("\n") if not l.strip().startswith("_Add anything")]
+        notes_lines = [
+            l for l in notes_section.split("\n")
+            if not l.strip().startswith("_Add anything")
+        ]
         custom = "\n".join(notes_lines).strip()
         if custom:
             data["custom_notes"] = custom
