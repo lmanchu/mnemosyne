@@ -113,6 +113,8 @@ class Handler(BaseHTTPRequestHandler):
             self._api_save_persona(data)
         elif path == "/api/v1/persona/inline":
             self._api_save_persona_inline(data)
+        elif path == "/api/v1/persona/reset_overlay":
+            self._api_reset_persona_overlay()
         else:
             self.send_error(404)
 
@@ -513,6 +515,38 @@ class Handler(BaseHTTPRequestHandler):
 
         pid = storage.save_persona(version, data, confidence)
         _json_response(self, {"status": "saved", "version": version, "id": pid})
+
+    def _api_reset_persona_overlay(self):
+        """Drop the user's markdown overlay from the latest persona row.
+
+        The next /persona?format=markdown read will fall through to
+        re-rendering from the structured fields, which is what the user
+        sees when they ask "show me what the daemon synthesised".
+        Writes a new row (so history is preserved) with the overlay
+        stripped — does NOT mutate the latest row in-place. If there's
+        no overlay to drop the call is a no-op.
+        """
+        existing = storage.get_latest_persona()
+        if not existing:
+            _json_response(self, {"status": "no_persona"})
+            return
+        data = existing.get("data", {}) or {}
+        if isinstance(data, str):
+            try: data = json.loads(data)
+            except (json.JSONDecodeError, TypeError): data = {}
+        if "_user_markdown_overlay" not in data:
+            _json_response(self, {"status": "noop", "reason": "no_overlay"})
+            return
+        new_data = dict(data)
+        new_data.pop("_user_markdown_overlay", None)
+        new_data["_overlay_reset_at"] = datetime.now().isoformat()
+        conn = storage.get_db()
+        count = conn.execute("SELECT COUNT(*) FROM persona").fetchone()[0]
+        conn.close()
+        version = f"0.{count + 1}.0"
+        confidence = existing.get("confidence", 0.5)
+        pid = storage.save_persona(version, new_data, confidence)
+        _json_response(self, {"status": "reset", "version": version, "id": pid})
 
     def _api_health(self):
         conn = storage.get_db()

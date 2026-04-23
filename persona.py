@@ -136,6 +136,17 @@ def synthesize_daily(date: str = None) -> dict | None:
     persona["card_count"] = len(cards)
     persona["llm_latency_ms"] = round(elapsed)
 
+    # Carry forward the user's markdown overlay if they've ever edited
+    # this persona in the in-app editor. Without this carry the daemon's
+    # daily synth silently resets the overlay (latest row has no overlay
+    # → editor renders from structured data → user's hand-written text
+    # vanishes). User explicitly clears the overlay via the editor's
+    # Reset button when they want the synth view.
+    if existing and isinstance(existing.get("data"), dict):
+        overlay = existing["data"].get("_user_markdown_overlay")
+        if isinstance(overlay, str) and overlay.strip():
+            persona["_user_markdown_overlay"] = overlay
+
     # Calculate version
     existing_count = 0
     conn = storage.get_db()
@@ -209,7 +220,16 @@ def show_persona():
 
 
 def to_markdown(persona_row: dict = None) -> str:
-    """Convert persona data to editable markdown."""
+    """Convert persona data to editable markdown.
+
+    When `data._user_markdown_overlay` is set, return that verbatim
+    instead of re-rendering from structured fields. This is the
+    "what-you-see-is-what-saved" path for the in-app editor: anything
+    the user typed (including text in headings or between sections)
+    survives a save/reload cycle. Synthesiser updates run in parallel
+    via the structured fields and only become visible after the user
+    explicitly resets the overlay.
+    """
     if not persona_row:
         persona_row = storage.get_latest_persona()
     if not persona_row:
@@ -221,6 +241,10 @@ def to_markdown(persona_row: dict = None) -> str:
             data = json.loads(data)
         except:
             data = {}
+
+    overlay = data.get("_user_markdown_overlay")
+    if isinstance(overlay, str) and overlay.strip():
+        return overlay
 
     version = persona_row.get("version", "?")
     confidence = persona_row.get("confidence", 0)
@@ -389,12 +413,25 @@ def _parse_list(val: str) -> list[str]:
 def from_markdown(md: str, existing_data: dict = None) -> dict:
     """Parse user-edited markdown back into persona data. Preserves fields user didn't edit.
 
-    Scope: every field `to_markdown()` writes as user-editable should
-    round-trip here. Synthesizer-generated fields (summary, activity
-    distribution) are intentionally left to the daemon — the editor
-    surfaces them as context but they aren't intended for hand-editing.
+    Two write paths:
+    1. Stash the raw `md` blob into `data._user_markdown_overlay` so
+       to_markdown can render it verbatim on the next read. This is the
+       what-you-see-is-what-saved guarantee for the editor — heading
+       lines, free-form prose between sections, and any other text the
+       structured parser ignores still survives a save/reload cycle.
+    2. Run the structured-field parser anyway so the daemon's other
+       consumers (e.g. system_prompt_fragment, profile aggregation)
+       see the edits as schema fields, not just an opaque blob. Both
+       paths land in the same row.
     """
     data = existing_data.copy() if existing_data else {}
+    # Strip the overlay flag if it survived from a prior read — we'll
+    # re-set it from the new markdown below; leaving the old one in
+    # place would mean a save with empty markdown reverts to the prior
+    # overlay instead of clearing it.
+    data.pop("_user_markdown_overlay", None)
+    if md and md.strip():
+        data["_user_markdown_overlay"] = md
     lines = [l.strip() for l in md.split("\n")]
 
     # Identity ---------------------------------------------------------
